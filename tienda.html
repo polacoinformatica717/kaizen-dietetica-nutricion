@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Catálogo de productos Kaizen con búsqueda, categorías y carrito de compras.">
+  <title>Tienda · Kaizen</title>
+  <link rel="icon" href="assets/logo-round.jpeg">
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="js/data.js" defer></script>
+  <script src="js/store.js" defer></script>
+  <script src="js/app.js" defer></script>
+</head>
+<body data-page="shop">
+  <div id="site-shell"></div>
+  <main>
+    <section class="page-hero">
+      <div class="container"><p class="eyebrow">Tienda Kaizen</p><h1>Todo lo que buscás, en un catálogo claro.</h1><p class="lead">Filtrá por categoría, buscá por nombre o código de artículo y ordená los resultados por precio.</p></div>
+    </section>
+
+    <section class="section compact">
+      <div class="container catalog-shell">
+        <aside class="filter-panel" aria-label="Filtros del catálogo">
+          <h2>Categorías</h2>
+          <div class="chip-list" id="category-chips"></div>
+          <hr style="border:0;border-top:1px solid var(--line);margin:22px 0">
+          <p class="fine-print">Los productos, precios y presentaciones son demostrativos y se reemplazarán por la información real.</p>
+        </aside>
+        <div>
+          <div class="catalog-toolbar">
+            <label class="search-wrap"><span class="sr-only">Buscar producto</span><input id="catalog-search" type="search" placeholder="Buscar por nombre o artículo…" autocomplete="off"></label>
+            <label><span class="sr-only">Ordenar productos</span><select id="catalog-sort"><option value="default">Orden recomendado</option><option value="asc">Precio: menor a mayor</option><option value="desc">Precio: mayor a menor</option></select></label>
+          </div>
+          <div class="catalog-status"><span id="catalog-count">0 productos</span><span>Precios expresados en ARS</span></div>
+          <div class="product-grid" id="catalog-grid" aria-live="polite"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+  <div id="site-footer"></div>
+</body>
+</html>

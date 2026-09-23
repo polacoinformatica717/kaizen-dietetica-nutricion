@@ -1,0 +1,463 @@
+(function () {
+  const money = (value) => new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(value);
+  const escapeHtml = (value) => String(value ?? "").replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char]));
+  const currentPage = () => document.body.dataset.page || "home";
+  const localDate = (iso) => new Date(`${iso}T12:00:00`);
+  const formatAddress = (address) => {
+    if (!address || typeof address !== "object") return String(address || "");
+    const main = [address.street, address.number].filter(Boolean).join(" ");
+    return [main, address.floorApartment, address.locality, address.postalCode ? `CP ${address.postalCode}` : "", address.reference].filter(Boolean).join(" · ");
+  };
+
+  function headerMarkup() {
+    const page = currentPage();
+    const session = window.KaizenStore.getSession();
+    const isAdmin = session?.role === "admin";
+    const active = (name) => page === name ? "active" : "";
+    return `
+      <div class="announcement">Compra online o por WhatsApp · Retiro en el local o envío a domicilio</div>
+      <header class="site-header">
+        <div class="header-inner">
+          <a class="brand" href="index.html" aria-label="Kaizen, ir al inicio"><img src="assets/logo-horizontal.jpeg" alt="Kaizen Dietética & Nutrición"></a>
+          <nav class="main-nav" id="main-nav" aria-label="Navegación principal">
+            <a class="${active("home")}" href="index.html">Inicio</a>
+            <a class="${active("shop")}" href="tienda.html">Tienda</a>
+            <a class="${active("nutrition")}" href="nutricion.html">Nutrición y turnos</a>
+            <a class="${active("account")}" href="cuenta.html">${isAdmin ? "Administración" : "Mi cuenta"}</a>
+          </nav>
+          <div class="header-actions">
+            <a class="button ghost small" href="${session ? "cuenta.html" : "acceso.html"}"><span class="account-label">${session ? escapeHtml(session.name.split(" ")[0]) : "Ingresar"}</span><span aria-hidden="true">◎</span></a>
+            ${isAdmin ? "" : `<a class="button small cart-button ${active("cart")}" href="carrito.html">Carrito <span class="cart-count" data-cart-count>0</span></a>`}
+          </div>
+        </div>
+      </header>`;
+  }
+
+  function footerMarkup() {
+    return `
+      <footer class="site-footer">
+        <div class="container footer-grid">
+          <div><img src="assets/logo-horizontal.jpeg" alt="Kaizen"><p>Dietética de cercanía y consultorio nutricional. Productos elegidos y acompañamiento profesional, paso a paso.</p></div>
+          <div class="footer-links"><strong>Explorá</strong><a href="tienda.html">Catálogo</a><a href="nutricion.html">Reservar turno</a><a href="cuenta.html">Mi cuenta</a></div>
+          <div class="footer-links"><strong>Contacto</strong><a href="mailto:hola@kaizen-demo.com">hola@kaizen-demo.com</a><a href="#">WhatsApp · dato a confirmar</a><span>Dirección · dato a confirmar</span></div>
+        </div>
+        <div class="container footer-bottom"><span>© ${new Date().getFullYear()} Kaizen Dietética & Nutrición</span><span>Versión funcional de demostración · datos comerciales a confirmar</span></div>
+      </footer>`;
+  }
+
+  function toast(message) {
+    document.querySelector(".toast")?.remove();
+    const element = document.createElement("div");
+    element.className = "toast";
+    element.setAttribute("role", "status");
+    element.textContent = message;
+    document.body.appendChild(element);
+    setTimeout(() => element.remove(), 2600);
+  }
+
+  function updateCartBadge() {
+    const quantity = window.KaizenStore.getCartSummary().quantity;
+    document.querySelectorAll("[data-cart-count]").forEach((element) => { element.textContent = quantity; });
+  }
+
+  function productActions(product) {
+    const session = window.KaizenStore.getSession();
+    if (session?.role === "admin") return `<button class="button ghost small" disabled>Solo clientes</button>`;
+    const line = window.KaizenStore.getCartSummary().lines.find((item) => item.product.id === product.id);
+    if (!line) return `<button class="button small" data-add-product="${product.id}">Agregar</button>`;
+    return `<div class="product-qty" aria-label="Cantidad de ${escapeHtml(product.name)}"><button data-qty="${product.id}" data-value="${line.quantity - 1}" aria-label="Quitar uno">−</button><strong>${line.quantity}</strong><button data-qty="${product.id}" data-value="${line.quantity + 1}" aria-label="Agregar uno">+</button></div>`;
+  }
+
+  function productCard(product) {
+    return `
+      <article class="product-card" data-product-card="${product.id}">
+        <div class="product-image"><img src="${window.KAIZEN_CATEGORY_IMAGE(product.category)}" alt="${escapeHtml(product.name)}"><span class="tag">${escapeHtml(product.unit)}</span></div>
+        <div class="product-body"><span class="product-meta">${escapeHtml(product.category)} · ${escapeHtml(product.article)}</span><h3>${escapeHtml(product.name)}</h3><p>${escapeHtml(product.description)}</p><div class="product-bottom"><span class="price">${money(product.price)}</span><div data-product-actions="${product.id}">${productActions(product)}</div></div></div>
+      </article>`;
+  }
+
+  function refreshProductActions() {
+    document.querySelectorAll("[data-product-actions]").forEach((element) => {
+      const product = window.KAIZEN_PRODUCTS.find((item) => item.id === Number(element.dataset.productActions));
+      if (product) element.innerHTML = productActions(product);
+    });
+    updateCartBadge();
+  }
+
+  function bindGlobalEvents() {
+    document.addEventListener("click", (event) => {
+      const addButton = event.target.closest("[data-add-product]");
+      if (addButton) {
+        const product = window.KAIZEN_PRODUCTS.find((item) => item.id === Number(addButton.dataset.addProduct));
+        try {
+          window.KaizenStore.addToCart(product.id);
+          refreshProductActions();
+          toast(`${product.name} se agregó al carrito.`);
+        } catch (error) { toast(error.message); }
+      }
+      const qty = event.target.closest("[data-qty]");
+      if (qty) {
+        try {
+          window.KaizenStore.updateCart(Number(qty.dataset.qty), Number(qty.dataset.value));
+          refreshProductActions();
+          renderCartPage();
+        } catch (error) { toast(error.message); }
+      }
+    });
+    window.addEventListener("kaizen:cart", updateCartBadge);
+  }
+
+  function initHome() {
+    const featured = document.getElementById("featured-products");
+    if (featured) {
+      const chosen = [0, 3, 6, 9, 12, 15, 1, 4].map((index) => window.KAIZEN_PRODUCTS[index]);
+      featured.innerHTML = chosen.map(productCard).join("");
+      document.querySelectorAll("[data-carousel-direction]").forEach((button) => button.addEventListener("click", () => {
+        featured.scrollBy({ left: featured.clientWidth * (button.dataset.carouselDirection === "next" ? .82 : -.82), behavior: "smooth" });
+      }));
+    }
+    const categories = document.getElementById("home-categories");
+    if (categories) categories.innerHTML = window.KAIZEN_CATEGORIES.slice(0, 3).map((category) => `<a class="category-card" href="tienda.html?categoria=${encodeURIComponent(category.name)}"><img src="assets/${category.image}" alt=""><span>${escapeHtml(category.name)} →</span></a>`).join("");
+  }
+
+  function initShop() {
+    const grid = document.getElementById("catalog-grid");
+    if (!grid) return;
+    const search = document.getElementById("catalog-search");
+    const sort = document.getElementById("catalog-sort");
+    const chips = document.getElementById("category-chips");
+    const status = document.getElementById("catalog-count");
+    let category = new URLSearchParams(location.search).get("categoria") || "Todos";
+    function render() {
+      const query = search.value.trim().toLowerCase();
+      let products = window.KAIZEN_PRODUCTS.filter((product) => (category === "Todos" || product.category === category) && (!query || product.name.toLowerCase().includes(query) || product.article.toLowerCase().includes(query)));
+      if (sort.value === "asc") products.sort((a, b) => a.price - b.price);
+      if (sort.value === "desc") products.sort((a, b) => b.price - a.price);
+      grid.innerHTML = products.length ? products.map(productCard).join("") : `<div class="empty-state"><h3>No encontramos coincidencias</h3><p class="muted">Probá con otro nombre, artículo o categoría.</p></div>`;
+      status.textContent = `${products.length} ${products.length === 1 ? "producto" : "productos"}`;
+      chips.innerHTML = ["Todos", ...window.KAIZEN_CATEGORIES.map((item) => item.name)].map((name) => `<button class="chip ${name === category ? "active" : ""}" data-category="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join("");
+    }
+    search.addEventListener("input", render);
+    sort.addEventListener("change", render);
+    chips.addEventListener("click", (event) => { const button = event.target.closest("[data-category]"); if (button) { category = button.dataset.category; render(); } });
+    render();
+  }
+
+  function upcomingDates() {
+    const schedule = window.KaizenStore.getSchedule();
+    const dates = [];
+    const cursor = new Date();
+    cursor.setHours(12, 0, 0, 0);
+    for (let day = 1; day <= 28 && dates.length < 8; day++) {
+      const date = new Date(cursor);
+      date.setDate(cursor.getDate() + day);
+      if (schedule.weekdays.includes(date.getDay())) dates.push(date);
+    }
+    return dates;
+  }
+
+  function initNutrition() {
+    const form = document.getElementById("booking-form");
+    if (!form) return;
+    const session = window.KaizenStore.getSession();
+    const schedule = window.KaizenStore.getSchedule();
+    document.getElementById("booking-mode").textContent = schedule.mode === "auto" ? "Confirmación inmediata" : "Sujeto a aprobación";
+    if (session?.role === "admin") {
+      form.innerHTML = `<div class="empty-state"><span class="tag">Cuenta administrativa</span><h2>La nutricionista no puede reservar turnos</h2><p class="muted">Desde el panel podés revisar las consultas a atender y administrar la disponibilidad.</p><a class="button" href="cuenta.html">Ir a administración</a></div>`;
+      return;
+    }
+    const selection = { type: "", date: "", time: "" };
+    const dateRow = document.getElementById("date-row");
+    const slotRow = document.getElementById("slot-row");
+    const summary = document.getElementById("booking-summary");
+    const result = document.getElementById("booking-result");
+    const promoChoice = form.querySelector('[data-booking-choice="Consulta inicial + 2 Controles"]');
+    if (promoChoice && session?.role === "customer" && window.KaizenStore.hasUsedPromo()) {
+      promoChoice.disabled = true;
+      promoChoice.classList.add("used");
+      promoChoice.querySelector("small").textContent = "Promoción ya utilizada por esta cuenta";
+    }
+    dateRow.innerHTML = upcomingDates().map((date) => {
+      const iso = date.toISOString().slice(0, 10);
+      return `<button type="button" class="date-button" data-date="${iso}"><span>${date.toLocaleDateString("es-AR", { weekday: "short" })}</span><b>${date.getDate()}</b><small>${date.toLocaleDateString("es-AR", { month: "short" })}</small></button>`;
+    }).join("");
+    slotRow.innerHTML = `<p class="muted slot-help">Elegí una fecha para ver los horarios disponibles y ocupados.</p>`;
+    const renderSlots = (date) => {
+      const occupied = new Set(window.KaizenStore.getOccupiedSlots(date));
+      slotRow.innerHTML = schedule.times.map((time) => occupied.has(time)
+        ? `<button type="button" class="slot-button occupied" disabled aria-label="${time}, ocupado"><strong>${time}</strong><span>Ocupado</span></button>`
+        : `<button type="button" class="slot-button" data-time="${time}"><strong>${time}</strong><span>Disponible</span></button>`).join("");
+    };
+    const updateSummary = () => {
+      summary.textContent = selection.type || selection.date || selection.time ? `${selection.type || "Tipo pendiente"} · Presencial · ${selection.date ? localDate(selection.date).toLocaleDateString("es-AR") : "Fecha pendiente"} · ${selection.time || "Horario pendiente"}` : "Tu selección aparecerá acá.";
+    };
+    form.addEventListener("click", (event) => {
+      const choice = event.target.closest("[data-booking-choice]");
+      if (choice && !choice.disabled) { form.querySelectorAll("[data-booking-choice]").forEach((item) => item.classList.remove("selected")); choice.classList.add("selected"); selection.type = choice.dataset.bookingChoice; }
+      const date = event.target.closest("[data-date]");
+      if (date) { form.querySelectorAll("[data-date]").forEach((item) => item.classList.remove("selected")); date.classList.add("selected"); selection.date = date.dataset.date; selection.time = ""; renderSlots(selection.date); }
+      const time = event.target.closest("[data-time]");
+      if (time) { form.querySelectorAll("[data-time]").forEach((item) => item.classList.remove("selected")); time.classList.add("selected"); selection.time = time.dataset.time; }
+      updateSummary();
+    });
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      if (!window.KaizenStore.getSession()) { window.location.href = "acceso.html?return=nutricion.html"; return; }
+      try {
+        const appointment = window.KaizenStore.createAppointment({ ...selection, notes: document.getElementById("appointment-notes").value });
+        form.innerHTML = `<div class="empty-state"><span class="status ${appointment.status === "Confirmado" ? "confirmed" : "pending"}">${appointment.status}</span><h2>Tu turno quedó ${appointment.status.toLowerCase()}</h2><p>${localDate(appointment.date).toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })} a las ${appointment.time}</p><a class="button" href="cuenta.html">Ver mi turno</a></div>`;
+      } catch (error) { result.textContent = error.message; result.className = "form-message error"; }
+    });
+  }
+
+  function initAuth() {
+    const loginForm = document.getElementById("login-form");
+    if (!loginForm) return;
+    const params = new URLSearchParams(location.search);
+    const returnTo = params.get("return") || "cuenta.html";
+    if (window.KaizenStore.getSession()) { location.href = returnTo; return; }
+    document.querySelectorAll("[data-auth-tab]").forEach((tab) => tab.addEventListener("click", () => {
+      document.querySelectorAll("[data-auth-tab]").forEach((item) => item.classList.toggle("active", item === tab));
+      document.getElementById("login-panel").hidden = tab.dataset.authTab !== "login";
+      document.getElementById("register-panel").hidden = tab.dataset.authTab !== "register";
+    }));
+    loginForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const message = document.getElementById("login-message");
+      try { await window.KaizenStore.login(document.getElementById("login-email").value, document.getElementById("login-password").value); location.href = returnTo; }
+      catch (error) { message.textContent = error.message; message.className = "form-message error"; }
+    });
+    document.getElementById("register-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const message = document.getElementById("register-message");
+      const password = document.getElementById("register-password").value;
+      if (password !== document.getElementById("register-confirm").value) { message.textContent = "Las contraseñas no coinciden."; message.className = "form-message error"; return; }
+      try {
+        await window.KaizenStore.register({
+          name: document.getElementById("register-name").value,
+          email: document.getElementById("register-email").value,
+          birthDate: document.getElementById("register-birth-date").value,
+          phone: document.getElementById("register-phone").value,
+          locality: document.getElementById("register-locality").value,
+          password
+        });
+        location.href = returnTo;
+      } catch (error) { message.textContent = error.message; message.className = "form-message error"; }
+    });
+  }
+
+  function renderCartPage() {
+    const linesElement = document.getElementById("cart-page-lines");
+    if (!linesElement) return;
+    const session = window.KaizenStore.getSession();
+    if (session?.role === "admin") {
+      document.getElementById("cart-page-root").innerHTML = `<div class="empty-state"><span class="tag">Cuenta administrativa</span><h2>La administración no puede realizar pedidos</h2><p class="muted">Usá el panel para revisar los pedidos de los clientes.</p><a class="button" href="cuenta.html">Ir a administración</a></div>`;
+      return;
+    }
+    const summary = window.KaizenStore.getCartSummary();
+    linesElement.innerHTML = summary.lines.length ? summary.lines.map(({ product, quantity }) => `
+      <article class="cart-page-line"><img src="${window.KAIZEN_CATEGORY_IMAGE(product.category)}" alt=""><div><span class="product-meta">${escapeHtml(product.article)}</span><h3>${escapeHtml(product.name)}</h3><p class="muted">${escapeHtml(product.unit)} · ${money(product.price)} c/u</p></div><div class="line-price">${money(product.price * quantity)}</div><div class="product-qty"><button data-qty="${product.id}" data-value="${quantity - 1}" aria-label="Quitar uno">−</button><strong>${quantity}</strong><button data-qty="${product.id}" data-value="${quantity + 1}" aria-label="Agregar uno">+</button></div></article>`).join("") : `<div class="empty-state"><h2>Tu carrito está vacío</h2><p class="muted">Explorá el catálogo y agregá tus productos favoritos.</p><a class="button" href="tienda.html">Ir a la tienda</a></div>`;
+    document.getElementById("cart-page-total").textContent = money(summary.total);
+    document.getElementById("checkout-panel").hidden = !summary.lines.length;
+  }
+
+  function initCart() {
+    const form = document.getElementById("checkout-form");
+    if (!form) return;
+    renderCartPage();
+    const selection = { payment: "", delivery: "" };
+    const savedAddress = window.KaizenStore.getDeliveryAddress();
+    Object.entries({
+      "checkout-street": savedAddress.street,
+      "checkout-number": savedAddress.number,
+      "checkout-floor": savedAddress.floorApartment,
+      "checkout-locality": savedAddress.locality,
+      "checkout-postal-code": savedAddress.postalCode,
+      "checkout-reference": savedAddress.reference
+    }).forEach(([id, value]) => { const field = document.getElementById(id); if (field) field.value = value || ""; });
+    form.addEventListener("click", (event) => {
+      const choice = event.target.closest("[data-checkout-choice]");
+      if (!choice) return;
+      const group = choice.dataset.group;
+      form.querySelectorAll(`[data-group="${group}"]`).forEach((item) => item.classList.remove("selected"));
+      choice.classList.add("selected");
+      selection[group] = choice.dataset.checkoutChoice;
+      if (group === "delivery") document.getElementById("address-field").hidden = selection.delivery !== "delivery";
+    });
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const message = document.getElementById("checkout-message");
+      if (!window.KaizenStore.getSession()) { location.href = "acceso.html?return=carrito.html"; return; }
+      try {
+        const address = {
+          street: document.getElementById("checkout-street").value,
+          number: document.getElementById("checkout-number").value,
+          floorApartment: document.getElementById("checkout-floor").value,
+          locality: document.getElementById("checkout-locality").value,
+          postalCode: document.getElementById("checkout-postal-code").value,
+          reference: document.getElementById("checkout-reference").value
+        };
+        const order = window.KaizenStore.placeOrder({ payment: selection.payment, delivery: selection.delivery, address, notes: document.getElementById("checkout-notes").value });
+        if (order.paymentKey === "whatsapp") {
+          const text = encodeURIComponent(`Hola Kaizen, quiero coordinar el pedido ${order.id} por ${money(order.total)} (${order.delivery}).`);
+          window.open(`https://wa.me/?text=${text}`, "_blank", "noopener,noreferrer");
+        }
+        document.getElementById("cart-page-root").innerHTML = `<div class="empty-state order-success"><span class="status ${order.status === "Confirmado" ? "confirmed" : "pending"}">${escapeHtml(order.status)}</span><h2>Pedido ${escapeHtml(order.id)} registrado</h2><p>${escapeHtml(order.payment)} · ${escapeHtml(order.delivery)}</p><p class="price">${money(order.total)}</p><a class="button" href="cuenta.html">Ver mis pedidos</a></div>`;
+        updateCartBadge();
+      } catch (error) { message.textContent = error.message; message.className = "form-message error"; }
+    });
+  }
+
+  function orderCard(order, admin = false) {
+    return `<article class="record-card"><div class="record-head"><div><strong>${escapeHtml(order.id)}</strong><br><small class="muted">${new Date(order.createdAt).toLocaleString("es-AR")}${admin ? ` · ${escapeHtml(order.userName || order.userEmail)}` : ""}</small></div><span class="status ${order.status === "Confirmado" ? "confirmed" : "pending"}">${escapeHtml(order.status)}</span></div><p>${escapeHtml(order.payment)} · ${escapeHtml(order.delivery)}</p>${order.deliveryKey === "delivery" && order.address ? `<p class="fine-print"><strong>Entrega:</strong> ${escapeHtml(formatAddress(order.address))}</p>` : ""}${admin ? `<p class="fine-print">${escapeHtml(order.userPhone || "Sin teléfono")} · ${escapeHtml(order.userLocality || "Sin localidad")}</p>` : ""}<div class="cluster"><strong>${money(order.total)}</strong><span class="muted">${order.items.reduce((sum, item) => sum + item.quantity, 0)} unidades</span></div></article>`;
+  }
+
+  function appointmentCard(appointment, admin = false) {
+    return `<article class="record-card"><div class="record-head"><div><strong>${escapeHtml(appointment.type)}</strong><br><small class="muted">${escapeHtml(appointment.id)}${admin ? ` · ${escapeHtml(appointment.userName)}` : ""}</small></div><span class="status ${appointment.status === "Confirmado" ? "confirmed" : "pending"}">${escapeHtml(appointment.status)}</span></div><p>${localDate(appointment.date).toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })} · ${escapeHtml(appointment.time)} · Presencial</p>${admin ? `<p class="fine-print">${escapeHtml(appointment.userPhone || "Sin teléfono")} · ${escapeHtml(appointment.userEmail || "Sin email")}${appointment.notes ? ` · ${escapeHtml(appointment.notes)}` : ""}</p>` : ""}${admin && appointment.status === "Pendiente" ? `<div class="cluster"><button class="button small" data-appointment-status="Confirmado" data-appointment-id="${appointment.id}">Confirmar</button><button class="button ghost small" data-appointment-status="Cancelado" data-appointment-id="${appointment.id}">Rechazar</button></div>` : ""}</article>`;
+  }
+
+  function renderAppointmentCalendar(appointments) {
+    const target = document.getElementById("appointment-calendar");
+    if (!target) return;
+    const active = appointments.filter((item) => item.status !== "Cancelado").sort((a, b) => a.date.localeCompare(b.date));
+    const focus = active[0] ? localDate(active[0].date) : new Date();
+    const year = focus.getFullYear();
+    const month = focus.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0).getDate();
+    const offset = (firstDay.getDay() + 6) % 7;
+    const appointmentDays = new Set(active.filter((item) => localDate(item.date).getFullYear() === year && localDate(item.date).getMonth() === month).map((item) => localDate(item.date).getDate()));
+    const blanks = Array.from({ length: offset }, () => `<span class="calendar-day blank"></span>`).join("");
+    const days = Array.from({ length: lastDay }, (_, index) => {
+      const day = index + 1;
+      return `<span class="calendar-day ${appointmentDays.has(day) ? "has-appointment" : ""}">${day}${appointmentDays.has(day) ? `<i aria-label="Turno reservado"></i>` : ""}</span>`;
+    }).join("");
+    target.innerHTML = `<div class="calendar-head"><div><p class="eyebrow">Calendario</p><h3>${focus.toLocaleDateString("es-AR", { month: "long", year: "numeric" })}</h3></div><span class="calendar-legend"><i></i> Día con turno</span></div><div class="calendar-weekdays"><b>Lun</b><b>Mar</b><b>Mié</b><b>Jue</b><b>Vie</b><b>Sáb</b><b>Dom</b></div><div class="calendar-grid">${blanks}${days}</div>`;
+  }
+
+  function groupOrdersByMonthAndDay(orders) {
+    if (!orders.length) return `<div class="empty-state"><p>No hay pedidos registrados.</p></div>`;
+    const groups = new Map();
+    orders.forEach((order) => {
+      const date = new Date(order.createdAt);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      const dayKey = date.toISOString().slice(0, 10);
+      if (!groups.has(monthKey)) groups.set(monthKey, { date, days: new Map() });
+      const month = groups.get(monthKey);
+      if (!month.days.has(dayKey)) month.days.set(dayKey, { date, orders: [] });
+      month.days.get(dayKey).orders.push(order);
+    });
+    return [...groups.values()].map((month) => `<section class="order-month"><h3>${month.date.toLocaleDateString("es-AR", { month: "long", year: "numeric" })}</h3>${[...month.days.values()].map((day) => `<div class="order-day"><h4>${day.date.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })}</h4><div class="record-list">${day.orders.map((order) => orderCard(order, true)).join("")}</div></div>`).join("")}</section>`).join("");
+  }
+
+  function bindAccountTabs() {
+    document.querySelectorAll("[data-panel-target]").forEach((button) => button.addEventListener("click", () => {
+      document.querySelectorAll("[data-panel-target]").forEach((item) => item.classList.toggle("active", item === button));
+      document.querySelectorAll(".dashboard-panel").forEach((panel) => panel.classList.toggle("active", panel.id === button.dataset.panelTarget));
+    }));
+  }
+
+  function initAccount() {
+    const root = document.getElementById("account-root");
+    if (!root) return;
+    const user = window.KaizenStore.getSession();
+    if (!user) { location.href = "acceso.html?return=cuenta.html"; return; }
+    const isAdmin = user.role === "admin";
+    document.getElementById("account-eyebrow").textContent = isAdmin ? "Administración" : "Mi cuenta";
+    document.getElementById("account-name").textContent = user.name;
+    document.getElementById("account-email").textContent = isAdmin ? "Panel de la nutricionista" : `${user.email} · ${user.phone} · ${user.locality}`;
+    document.querySelectorAll(isAdmin ? "[data-customer-only]" : "[data-admin-only]").forEach((element) => element.remove());
+    document.getElementById("logout-button").addEventListener("click", () => { window.KaizenStore.logout(); location.href = "index.html"; });
+    bindAccountTabs();
+    if (isAdmin) initAdminAccount();
+    else initCustomerAccount();
+  }
+
+  function initCustomerAccount() {
+    const orders = window.KaizenStore.getOrders();
+    const appointments = window.KaizenStore.getAppointments();
+    document.getElementById("order-count").textContent = orders.length;
+    document.getElementById("appointment-count").textContent = appointments.length;
+    document.getElementById("cart-summary-count").textContent = window.KaizenStore.getCartSummary().quantity;
+    document.getElementById("orders-list").innerHTML = orders.length ? orders.map((order) => orderCard(order)).join("") : `<div class="empty-state"><h3>Todavía no hiciste pedidos</h3><a class="button small" href="tienda.html">Explorar productos</a></div>`;
+    document.getElementById("appointments-list").innerHTML = appointments.length ? appointments.map((item) => appointmentCard(item)).join("") : `<div class="empty-state"><h3>Todavía no reservaste turnos</h3><a class="button small" href="nutricion.html">Ver agenda</a></div>`;
+    renderAppointmentCalendar(appointments);
+  }
+
+  function initAdminAccount() {
+    const orders = window.KaizenStore.getOrders(true);
+    const appointments = window.KaizenStore.getAppointments(true).sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`));
+    document.getElementById("admin-order-count").textContent = orders.length;
+    document.getElementById("admin-appointment-count").textContent = appointments.filter((item) => item.status !== "Cancelado").length;
+    document.getElementById("admin-pending-count").textContent = appointments.filter((item) => item.status === "Pendiente").length;
+    document.getElementById("admin-orders").innerHTML = groupOrdersByMonthAndDay(orders);
+    const list = document.getElementById("admin-appointments");
+    list.innerHTML = appointments.length ? appointments.map((item) => appointmentCard(item, true)).join("") : `<div class="empty-state"><p>No hay turnos registrados.</p></div>`;
+    list.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-appointment-status]");
+      if (!button) return;
+      window.KaizenStore.updateAppointmentStatus(button.dataset.appointmentId, button.dataset.appointmentStatus);
+      location.reload();
+    });
+    initSchedule();
+  }
+
+  function initSchedule() {
+    const schedule = window.KaizenStore.getSchedule();
+    const mode = document.getElementById("schedule-mode");
+    const times = document.getElementById("schedule-times");
+    mode.value = schedule.mode;
+    const baseTimes = Array.from({ length: 25 }, (_, index) => {
+      const minutes = 8 * 60 + index * 30;
+      return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+    });
+    const availableTimes = [...new Set([...baseTimes, ...schedule.times])].sort();
+    times.innerHTML = availableTimes.map((time) => `<label class="time-check"><input type="checkbox" data-schedule-time value="${time}" ${schedule.times.includes(time) ? "checked" : ""}><span>${time}</span></label>`).join("");
+    document.querySelectorAll("[data-weekday]").forEach((checkbox) => { checkbox.checked = schedule.weekdays.includes(Number(checkbox.dataset.weekday)); });
+    document.getElementById("schedule-form").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const weekdays = [...document.querySelectorAll("[data-weekday]:checked")].map((item) => Number(item.dataset.weekday));
+      const parsedTimes = [...document.querySelectorAll("[data-schedule-time]:checked")].map((item) => item.value).sort();
+      const message = document.getElementById("schedule-message");
+      if (!weekdays.length || !parsedTimes.length) { message.textContent = "Elegí al menos un día y un horario disponible."; message.className = "form-message error"; return; }
+      window.KaizenStore.saveSchedule({ mode: mode.value, weekdays, times: parsedTimes });
+      message.textContent = "Configuración guardada.";
+      message.className = "form-message success";
+    });
+  }
+
+  function registerWebMCP() {
+    const context = document.modelContext;
+    if (!context?.registerTool) return;
+    const tools = [
+      {
+        name: "search_catalog", title: "Buscar en el catálogo", description: "Busca productos de Kaizen por nombre, artículo o categoría sin modificar el carrito.",
+        inputSchema: { type: "object", properties: { query: { type: "string" } }, required: ["query"], additionalProperties: false }, annotations: { readOnlyHint: true, untrustedContentHint: false },
+        execute({ query }) { const term = String(query || "").toLowerCase(); return window.KAIZEN_PRODUCTS.filter((item) => `${item.name} ${item.article} ${item.category}`.toLowerCase().includes(term)).map(({ id, article, name, category, price }) => ({ id, article, name, category, price })); }
+      },
+      {
+        name: "add_product_to_cart", title: "Agregar producto al carrito", description: "Agrega una cantidad de un producto identificado por su ID al carrito visible de Kaizen.",
+        inputSchema: { type: "object", properties: { productId: { type: "integer" }, quantity: { type: "integer", minimum: 1 } }, required: ["productId"], additionalProperties: false }, annotations: { readOnlyHint: false, untrustedContentHint: false },
+        execute({ productId, quantity = 1 }) { return window.KaizenStore.addToCart(productId, quantity); }
+      }
+    ];
+    tools.forEach((tool) => { try { context.registerTool(tool); } catch (_) { /* Browser without WebMCP support. */ } });
+  }
+
+  document.addEventListener("DOMContentLoaded", async () => {
+    await window.KaizenStore.initialize();
+    document.getElementById("site-shell").innerHTML = headerMarkup();
+    document.getElementById("site-footer").innerHTML = footerMarkup();
+    bindGlobalEvents();
+    updateCartBadge();
+    initHome();
+    initShop();
+    initNutrition();
+    initAuth();
+    initCart();
+    initAccount();
+    registerWebMCP();
+  });
+
+  window.KaizenUI = { money, productCard, toast };
+})();

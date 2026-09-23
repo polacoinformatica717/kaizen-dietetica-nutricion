@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Gestioná tus pedidos y turnos de Kaizen.">
+  <title>Mi cuenta · Kaizen</title>
+  <link rel="icon" href="assets/logo-round.jpeg">
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="js/data.js" defer></script>
+  <script src="js/store.js" defer></script>
+  <script src="js/app.js" defer></script>
+</head>
+<body data-page="account">
+  <div id="site-shell"></div>
+  <main id="account-root">
+    <section class="account-hero"><div class="container"><p class="eyebrow" id="account-eyebrow">Mi cuenta</p><h1>Hola, <span id="account-name">…</span></h1><p class="lead" id="account-email"></p></div></section>
+    <section class="section compact">
+      <div class="container dashboard-grid">
+        <nav class="account-nav" aria-label="Secciones de la cuenta">
+          <button class="active" data-customer-only data-panel-target="panel-summary">Resumen</button>
+          <button data-customer-only data-panel-target="panel-orders">Mis pedidos</button>
+          <button data-customer-only data-panel-target="panel-appointments">Mis turnos</button>
+          <button class="active" data-admin-only data-panel-target="panel-admin-summary">Resumen</button>
+          <button data-admin-only data-panel-target="panel-admin-orders">Pedidos</button>
+          <button data-admin-only data-panel-target="panel-admin-appointments">Turnos a atender</button>
+          <button data-admin-only data-panel-target="panel-admin-schedule">Configurar agenda</button>
+          <button id="logout-button">Cerrar sesión</button>
+        </nav>
+
+        <div>
+          <section class="dashboard-panel active" id="panel-summary" data-customer-only>
+            <h2>Resumen</h2>
+            <div class="summary-cards"><div class="summary-card"><span>Pedidos</span><strong id="order-count">0</strong></div><div class="summary-card"><span>Turnos</span><strong id="appointment-count">0</strong></div><div class="summary-card"><span>Productos en carrito</span><strong id="cart-summary-count">0</strong></div></div>
+            <div class="feature-band account-feature"><img src="assets/combo-desayuno.jpeg" alt="Combo de desayuno saludable"><div class="feature-copy"><p class="eyebrow">Seguí explorando</p><h2>Tu próximo paso está cerca.</h2><div class="cluster"><a class="button" href="tienda.html">Ir a la tienda</a><a class="button ghost" href="nutricion.html">Reservar turno</a></div></div></div>
+          </section>
+          <section class="dashboard-panel" id="panel-orders" data-customer-only><h2>Mis pedidos</h2><div class="record-list" id="orders-list"></div></section>
+          <section class="dashboard-panel" id="panel-appointments" data-customer-only><h2>Mis turnos</h2><div class="record-list" id="appointments-list"></div><div class="appointment-calendar" id="appointment-calendar"></div></section>
+
+          <section class="dashboard-panel active" id="panel-admin-summary" data-admin-only>
+            <h2>Resumen de actividad</h2>
+            <div class="summary-cards"><div class="summary-card"><span>Pedidos recibidos</span><strong id="admin-order-count">0</strong></div><div class="summary-card"><span>Turnos a atender</span><strong id="admin-appointment-count">0</strong></div><div class="summary-card"><span>Pendientes</span><strong id="admin-pending-count">0</strong></div></div>
+            <div class="admin-welcome"><p class="eyebrow">Panel de la nutricionista</p><h2>Organizá la atención desde un solo lugar.</h2><p>Revisá los pedidos agrupados por fecha, prepará tus próximos turnos y ajustá los horarios disponibles.</p></div>
+          </section>
+          <section class="dashboard-panel" id="panel-admin-orders" data-admin-only><h2>Pedidos por fecha</h2><div id="admin-orders"></div></section>
+          <section class="dashboard-panel" id="panel-admin-appointments" data-admin-only><h2>Turnos a atender</h2><div class="record-list" id="admin-appointments"></div></section>
+          <section class="dashboard-panel" id="panel-admin-schedule" data-admin-only>
+            <h2>Configurar agenda</h2>
+            <form class="form-card stack" id="schedule-form">
+              <label>Modo de confirmación<select id="schedule-mode"><option value="auto">Confirmación automática</option><option value="pending">Pendiente de aprobación</option></select></label>
+              <div><p style="font-weight:800;margin-bottom:9px">Horarios disponibles</p><div class="time-option-grid" id="schedule-times" aria-label="Horarios disponibles"></div></div>
+              <div><p style="font-weight:800;margin-bottom:9px">Días de atención</p><div class="weekday-grid"><label class="weekday-check"><input type="checkbox" data-weekday="1">Lun</label><label class="weekday-check"><input type="checkbox" data-weekday="2">Mar</label><label class="weekday-check"><input type="checkbox" data-weekday="3">Mié</label><label class="weekday-check"><input type="checkbox" data-weekday="4">Jue</label><label class="weekday-check"><input type="checkbox" data-weekday="5">Vie</label><label class="weekday-check"><input type="checkbox" data-weekday="6">Sáb</label><label class="weekday-check"><input type="checkbox" data-weekday="0">Dom</label></div></div>
+              <p class="form-message" id="schedule-message" role="status"></p><button class="button" type="submit">Guardar configuración</button>
+            </form>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+  <div id="site-footer"></div>
+</body>
+</html>

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Ingresá o creá tu cuenta de Kaizen.">
+  <title>Acceso · Kaizen</title>
+  <link rel="icon" href="assets/logo-round.jpeg">
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="js/data.js" defer></script>
+  <script src="js/store.js" defer></script>
+  <script src="js/app.js" defer></script>
+</head>
+<body data-page="auth">
+  <div id="site-shell"></div>
+  <main class="auth-layout">
+    <section class="auth-aside">
+      <p class="eyebrow" style="color:var(--lime)">Tu espacio Kaizen</p>
+      <h1>Tus pedidos y turnos, siempre a mano.</h1>
+      <p class="lead">Creá una cuenta para finalizar compras, reservar consultas y revisar tu historial.</p>
+      <div class="credential-box"><strong>Credenciales de demostración</strong><p>Cliente: <code>cliente@kaizen.demo</code><br>Clave: <code>Demo1234</code></p><p>Administración: <code>admin@kaizen.demo</code><br>Clave: <code>Admin1234</code></p></div>
+    </section>
+    <section class="auth-main">
+      <div class="tabs" role="tablist"><button class="tab active" data-auth-tab="login" type="button">Ingresar</button><button class="tab" data-auth-tab="register" type="button">Crear cuenta</button></div>
+      <div class="form-card auth-panel" id="login-panel">
+        <h2>Bienvenido de nuevo</h2><p class="muted">Ingresá con tu correo y contraseña.</p>
+        <form class="stack" id="login-form"><label>Correo electrónico<input id="login-email" type="email" autocomplete="email" required></label><label>Contraseña<input id="login-password" type="password" autocomplete="current-password" required></label><p class="form-message" id="login-message" role="status"></p><button class="button" type="submit">Ingresar</button></form>
+      </div>
+      <div class="form-card auth-panel" id="register-panel" hidden>
+        <h2>Creá tu cuenta</h2><p class="muted">Vas a usarla para comprar y reservar turnos.</p>
+        <form class="stack" id="register-form">
+          <label>Nombre y apellido<input id="register-name" autocomplete="name" required></label>
+          <label>Correo electrónico<input id="register-email" type="email" autocomplete="email" required></label>
+          <div class="field-grid"><label>Fecha de nacimiento<input id="register-birth-date" type="date" autocomplete="bday" required></label><label>Número de contacto<input id="register-phone" type="tel" autocomplete="tel" required></label></div>
+          <label>Localidad<input id="register-locality" autocomplete="address-level2" required></label>
+          <div class="field-grid"><label>Contraseña<input id="register-password" type="password" minlength="8" autocomplete="new-password" required></label><label>Repetir contraseña<input id="register-confirm" type="password" minlength="8" autocomplete="new-password" required></label></div>
+          <p class="form-message" id="register-message" role="status"></p><button class="button" type="submit">Crear cuenta</button><p class="fine-print">Esta versión guarda los datos únicamente en este navegador para demostrar el funcionamiento.</p>
+        </form>
+      </div>
+    </section>
+  </main>
+  <div id="site-footer"></div>
+</body>
+</html>

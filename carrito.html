@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Revisá tu carrito y elegí cómo pagar y recibir tu compra en Kaizen.">
+  <title>Carrito · Kaizen</title>
+  <link rel="icon" href="assets/logo-round.jpeg">
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="js/data.js" defer></script>
+  <script src="js/store.js" defer></script>
+  <script src="js/app.js" defer></script>
+</head>
+<body data-page="cart">
+  <div id="site-shell"></div>
+  <main>
+    <section class="page-hero cart-hero"><div class="container"><p class="eyebrow">Tu compra</p><h1>Revisá el carrito y elegí cada detalle.</h1><p class="lead">El medio de pago y la forma de entrega se seleccionan por separado.</p></div></section>
+    <section class="section compact">
+      <div class="container cart-page-layout" id="cart-page-root">
+        <div><div class="cart-page-lines" id="cart-page-lines"></div><a class="text-link" href="tienda.html">← Seguir comprando</a></div>
+        <aside class="checkout-panel" id="checkout-panel">
+          <form class="stack" id="checkout-form">
+            <div class="checkout-total"><span>Total del pedido</span><strong id="cart-page-total">$0</strong></div>
+            <div class="checkout-step"><p class="eyebrow">1. Medio de pago</p><div class="choice-grid"><button class="choice-card" type="button" data-checkout-choice="mp" data-group="payment"><strong>Mercado Pago</strong><small>Pago online de demostración</small></button><button class="choice-card" type="button" data-checkout-choice="whatsapp" data-group="payment"><strong>WhatsApp</strong><small>Coordiná el pago con Kaizen</small></button></div></div>
+            <div class="checkout-step"><p class="eyebrow">2. Entrega</p><div class="choice-grid"><button class="choice-card" type="button" data-checkout-choice="pickup" data-group="delivery"><strong>Retiro en el local</strong><small>Te avisamos cuando esté preparado</small></button><button class="choice-card" type="button" data-checkout-choice="delivery" data-group="delivery"><strong>Envío a domicilio</strong><small>Costo y zona a confirmar</small></button></div></div>
+            <fieldset class="delivery-address" id="address-field" hidden>
+              <legend><span class="eyebrow">3. Domicilio de entrega</span></legend>
+              <div class="address-grid">
+                <label class="address-street">Calle<input id="checkout-street" autocomplete="address-line1" placeholder="Ej.: San Martín"></label>
+                <label>Número<input id="checkout-number" inputmode="numeric" placeholder="Ej.: 1234"></label>
+                <label>Piso / departamento<input id="checkout-floor" autocomplete="address-line2" placeholder="Opcional"></label>
+                <label>Localidad<input id="checkout-locality" autocomplete="address-level2"></label>
+                <label>Código postal<input id="checkout-postal-code" autocomplete="postal-code" placeholder="Opcional"></label>
+                <label class="address-reference">Referencia para la entrega<input id="checkout-reference" placeholder="Opcional: portón, entre calles, etc."></label>
+              </div>
+            </fieldset>
+            <label>Nota para el pedido<textarea id="checkout-notes" placeholder="Opcional"></textarea></label>
+            <p class="form-message" id="checkout-message" role="status"></p>
+            <button class="button" type="submit">Confirmar pedido de demostración</button>
+            <p class="fine-print">Necesitás ingresar con una cuenta de cliente para confirmar.</p>
+          </form>
+        </aside>
+      </div>
+    </section>
+  </main>
+  <div id="site-footer"></div>
+</body>
+</html>
