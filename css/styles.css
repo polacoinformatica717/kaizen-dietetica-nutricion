@@ -310,6 +310,7 @@ h3 { line-height: 1.2; }
 .search-wrap input { padding-left: 45px; }
 .search-wrap::before { content: "⌕"; position: absolute; left: 17px; top: 9px; color: var(--green); font-size: 1.35rem; }
 .catalog-status { display: flex; justify-content: space-between; gap: 16px; margin: 8px 0 22px; color: var(--muted); font-size: .9rem; }
+.catalog-more { display: flex; justify-content: center; padding-top: 28px; }
 .empty-state { grid-column: 1 / -1; padding: 60px 24px; border: 1px dashed var(--line); border-radius: var(--radius); text-align: center; }
 
 label { display: grid; gap: 7px; color: var(--ink); font-size: .88rem; font-weight: 750; }

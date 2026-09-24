@@ -1,5 +1,13 @@
 (function () {
   const money = (value) => new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(value);
+  const isConsultPrice = (product) => product?.priceStatus === "consult" || Number(product?.price) <= 0;
+  const productPriceLabel = (product) => isConsultPrice(product) ? "Consultar precio" : money(product.price);
+  const compareProductPrices = (left, right, direction = 1) => {
+    const leftConsult = isConsultPrice(left);
+    const rightConsult = isConsultPrice(right);
+    if (leftConsult !== rightConsult) return leftConsult ? 1 : -1;
+    return direction * (Number(left.price) - Number(right.price));
+  };
   const escapeHtml = (value) => String(value ?? "").replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char]));
   const currentPage = () => document.body.dataset.page || "home";
   const localDate = (iso) => new Date(`${iso}T12:00:00`);
@@ -63,6 +71,7 @@
   function productActions(product) {
     const session = window.KaizenStore.getSession();
     if (session?.role === "admin") return `<button class="button ghost small" disabled>Solo clientes</button>`;
+    if (isConsultPrice(product)) return `<button class="button ghost small" data-consult-product="${product.id}">Consultar</button>`;
     const line = window.KaizenStore.getCartSummary().lines.find((item) => item.product.id === product.id);
     if (!line) return `<button class="button small" data-add-product="${product.id}">Agregar</button>`;
     return `<div class="product-qty" aria-label="Cantidad de ${escapeHtml(product.name)}"><button data-qty="${product.id}" data-value="${line.quantity - 1}" aria-label="Quitar uno">−</button><strong>${line.quantity}</strong><button data-qty="${product.id}" data-value="${line.quantity + 1}" aria-label="Agregar uno">+</button></div>`;
@@ -72,7 +81,7 @@
     return `
       <article class="product-card" data-product-card="${product.id}">
         <div class="product-image"><img src="${window.KAIZEN_CATEGORY_IMAGE(product.category)}" alt="${escapeHtml(product.name)}"><span class="tag">${escapeHtml(product.unit)}</span></div>
-        <div class="product-body"><span class="product-meta">${escapeHtml(product.category)} · ${escapeHtml(product.article)}</span><h3>${escapeHtml(product.name)}</h3><p>${escapeHtml(product.description)}</p><div class="product-bottom"><span class="price">${money(product.price)}</span><div data-product-actions="${product.id}">${productActions(product)}</div></div></div>
+        <div class="product-body"><span class="product-meta">${escapeHtml(product.category)} · ${escapeHtml(product.article)}${product.isPromotion ? " · Promoción" : ""}</span><h3>${escapeHtml(product.name)}</h3><p>${escapeHtml(product.description)}</p><div class="product-bottom"><span class="price">${productPriceLabel(product)}</span><div data-product-actions="${product.id}">${productActions(product)}</div></div></div>
       </article>`;
   }
 
@@ -86,6 +95,14 @@
 
   function bindGlobalEvents() {
     document.addEventListener("click", (event) => {
+      const consultButton = event.target.closest("[data-consult-product]");
+      if (consultButton) {
+        const product = window.KAIZEN_PRODUCTS.find((item) => item.id === Number(consultButton.dataset.consultProduct));
+        if (product) {
+          const text = encodeURIComponent(`Hola Kaizen, quisiera consultar el precio de ${product.name} (${product.article}, ${product.unit}).`);
+          window.open(`https://wa.me/?text=${text}`, "_blank", "noopener,noreferrer");
+        }
+      }
       const addButton = event.target.closest("[data-add-product]");
       if (addButton) {
         const product = window.KAIZEN_PRODUCTS.find((item) => item.id === Number(addButton.dataset.addProduct));
@@ -110,7 +127,7 @@
   function initHome() {
     const featured = document.getElementById("featured-products");
     if (featured) {
-      const chosen = [0, 3, 6, 9, 12, 15, 1, 4].map((index) => window.KAIZEN_PRODUCTS[index]);
+      const chosen = window.KAIZEN_CATEGORIES.map((category) => window.KAIZEN_PRODUCTS.find((product) => product.category === category.name && !product.isPromotion && !isConsultPrice(product))).filter(Boolean).slice(0, 8);
       featured.innerHTML = chosen.map(productCard).join("");
       document.querySelectorAll("[data-carousel-direction]").forEach((button) => button.addEventListener("click", () => {
         featured.scrollBy({ left: featured.clientWidth * (button.dataset.carouselDirection === "next" ? .82 : -.82), behavior: "smooth" });
@@ -127,19 +144,26 @@
     const sort = document.getElementById("catalog-sort");
     const chips = document.getElementById("category-chips");
     const status = document.getElementById("catalog-count");
+    const more = document.getElementById("catalog-more");
+    const pageSize = 36;
+    let visibleCount = pageSize;
     let category = new URLSearchParams(location.search).get("categoria") || "Todos";
-    function render() {
+    function render({ reset = true } = {}) {
+      if (reset) visibleCount = pageSize;
       const query = search.value.trim().toLowerCase();
-      let products = window.KAIZEN_PRODUCTS.filter((product) => (category === "Todos" || product.category === category) && (!query || product.name.toLowerCase().includes(query) || product.article.toLowerCase().includes(query)));
-      if (sort.value === "asc") products.sort((a, b) => a.price - b.price);
-      if (sort.value === "desc") products.sort((a, b) => b.price - a.price);
-      grid.innerHTML = products.length ? products.map(productCard).join("") : `<div class="empty-state"><h3>No encontramos coincidencias</h3><p class="muted">Probá con otro nombre, artículo o categoría.</p></div>`;
-      status.textContent = `${products.length} ${products.length === 1 ? "producto" : "productos"}`;
+      let products = window.KAIZEN_PRODUCTS.filter((product) => (category === "Todos" || product.category === category) && (!query || `${product.name} ${product.article} ${product.description} ${product.condition}`.toLowerCase().includes(query)));
+      if (sort.value === "asc") products.sort((a, b) => compareProductPrices(a, b, 1));
+      if (sort.value === "desc") products.sort((a, b) => compareProductPrices(a, b, -1));
+      const visibleProducts = products.slice(0, visibleCount);
+      grid.innerHTML = visibleProducts.length ? visibleProducts.map(productCard).join("") : `<div class="empty-state"><h3>No encontramos coincidencias</h3><p class="muted">Probá con otro nombre, artículo o categoría.</p></div>`;
+      status.textContent = products.length ? `${products.length} ${products.length === 1 ? "opción" : "opciones"} · mostrando ${visibleProducts.length}` : "0 opciones";
+      more.innerHTML = visibleProducts.length < products.length ? `<button class="button ghost" type="button" data-load-more>Ver más opciones</button>` : "";
       chips.innerHTML = ["Todos", ...window.KAIZEN_CATEGORIES.map((item) => item.name)].map((name) => `<button class="chip ${name === category ? "active" : ""}" data-category="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join("");
     }
     search.addEventListener("input", render);
     sort.addEventListener("change", render);
     chips.addEventListener("click", (event) => { const button = event.target.closest("[data-category]"); if (button) { category = button.dataset.category; render(); } });
+    more.addEventListener("click", (event) => { if (event.target.closest("[data-load-more]")) { visibleCount += pageSize; render({ reset: false }); } });
     render();
   }
 

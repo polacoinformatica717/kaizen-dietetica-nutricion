@@ -2,7 +2,7 @@
   const KEYS = {
     users: "kaizen_users_v1",
     session: "kaizen_session_v1",
-    cart: "kaizen_cart_v1",
+    cart: "kaizen_cart_v2",
     orders: "kaizen_orders_v1",
     appointments: "kaizen_appointments_v1",
     schedule: "kaizen_schedule_v1",
@@ -38,6 +38,7 @@
   }
 
   async function initialize() {
+    localStorage.removeItem("kaizen_cart_v1");
     let users = read(KEYS.users, []);
     if (!users.length) {
       users = [
@@ -108,16 +109,36 @@
     return session;
   }
 
+  function isConsultProduct(product) {
+    return product?.priceStatus === "consult" || Number(product?.price) <= 0;
+  }
+  function productPromotionKey(product) {
+    return product?.promotionKey || (product?.isPromotion ? product.article : null);
+  }
+  function hasUsedProductPromotion(productId, userId = null) {
+    const product = window.KAIZEN_PRODUCTS.find((item) => item.id === Number(productId));
+    const key = productPromotionKey(product);
+    const session = getSession();
+    const customerId = userId || (session?.role === "customer" ? session.id : null);
+    if (!key || !customerId) return false;
+    return read(KEYS.orders, []).some((order) => order.userId === customerId && order.items?.some((item) => item.promotionKey === key));
+  }
+
   function getCart() { return read(KEYS.cart, []); }
   function saveCart(cart) { write(KEYS.cart, cart); window.dispatchEvent(new CustomEvent("kaizen:cart")); }
   function addToCart(productId, quantity = 1) {
-    requireCustomer("realizar compras");
+    const session = requireCustomer("realizar compras");
     const product = window.KAIZEN_PRODUCTS.find((item) => item.id === Number(productId));
     if (!product) throw new Error("Producto no encontrado.");
+    if (isConsultProduct(product)) throw new Error("Este producto requiere consultar el precio antes de comprar.");
+    if (product.isPromotion && !session) throw new Error("Iniciá sesión para utilizar una promoción.");
+    if (product.isPromotion && hasUsedProductPromotion(product.id, session?.id)) throw new Error("Esta promoción ya fue utilizada por esta cuenta.");
+    const minimum = product.isPromotion ? Math.max(1, Number(product.promotionMinimumQuantity) || 1) : 1;
+    const requested = Math.max(minimum, Number(quantity) || 1);
     const cart = getCart();
     const line = cart.find((item) => item.id === product.id);
-    if (line) line.quantity += Math.max(1, Number(quantity) || 1);
-    else cart.push({ id: product.id, quantity: Math.max(1, Number(quantity) || 1) });
+    if (line) line.quantity = Math.max(minimum, line.quantity + Math.max(1, Number(quantity) || 1));
+    else cart.push({ id: product.id, quantity: requested });
     saveCart(cart);
     return getCartSummary();
   }
@@ -125,8 +146,13 @@
     requireCustomer("modificar el carrito");
     let cart = getCart();
     const id = Number(productId);
+    const product = window.KAIZEN_PRODUCTS.find((item) => item.id === id);
+    if (!product) throw new Error("Producto no encontrado.");
     if (quantity <= 0) cart = cart.filter((item) => item.id !== id);
-    else cart = cart.map((item) => item.id === id ? { ...item, quantity: Number(quantity) } : item);
+    else {
+      const minimum = product.isPromotion ? Math.max(1, Number(product.promotionMinimumQuantity) || 1) : 1;
+      cart = cart.map((item) => item.id === id ? { ...item, quantity: Math.max(minimum, Number(quantity) || minimum) } : item);
+    }
     saveCart(cart);
     return getCartSummary();
   }
@@ -176,6 +202,11 @@
     if (!user) throw new Error("Necesitás iniciar sesión para finalizar la compra.");
     const cart = getCartSummary();
     if (!cart.lines.length) throw new Error("El carrito está vacío.");
+    for (const line of cart.lines.filter((item) => item.product.isPromotion)) {
+      if (hasUsedProductPromotion(line.product.id, user.id)) throw new Error(`La promoción ${line.product.name} ya fue utilizada por esta cuenta.`);
+      const minimum = Math.max(1, Number(line.product.promotionMinimumQuantity) || 1);
+      if (line.quantity < minimum) throw new Error(`La promoción ${line.product.name} requiere una cantidad mínima de ${minimum}.`);
+    }
     const paymentLabels = { mp: "Mercado Pago", whatsapp: "Coordinación por WhatsApp" };
     const deliveryLabels = { pickup: "Retiro en el local", delivery: "Envío a domicilio" };
     if (!paymentLabels[payment]) throw new Error("Elegí un medio de pago.");
@@ -196,7 +227,7 @@
       deliveryKey: delivery,
       address: deliveryAddress,
       notes: String(notes).trim(),
-      items: cart.lines.map((line) => ({ id: line.product.id, name: line.product.name, price: line.product.price, quantity: line.quantity })),
+      items: cart.lines.map((line) => ({ id: line.product.id, article: line.product.article, name: line.product.name, price: line.product.price, quantity: line.quantity, isPromotion: Boolean(line.product.isPromotion), promotionKey: productPromotionKey(line.product), promotionMinimumQuantity: line.product.promotionMinimumQuantity || null })),
       total: cart.total
     };
     const orders = read(KEYS.orders, []);
@@ -280,7 +311,7 @@
 
   window.KaizenStore = {
     initialize, register, login, getSession, logout,
-    getCart, addToCart, updateCart, clearCart, getCartSummary,
+    getCart, addToCart, updateCart, clearCart, getCartSummary, hasUsedProductPromotion,
     getDeliveryAddress, saveDeliveryAddress, placeOrder, getOrders,
     getSchedule, saveSchedule, getOccupiedSlots, hasUsedPromo, createAppointment, getAppointments, updateAppointmentStatus
   };
