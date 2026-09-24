@@ -24,6 +24,7 @@
           <button class="active" data-admin-only data-panel-target="panel-admin-summary">Resumen</button>
           <button data-admin-only data-panel-target="panel-admin-orders">Pedidos</button>
           <button data-admin-only data-panel-target="panel-admin-appointments">Turnos a atender</button>
+          <button data-admin-only data-panel-target="panel-admin-catalog">Catálogo y stock</button>
           <button data-admin-only data-panel-target="panel-admin-schedule">Configurar agenda</button>
           <button id="logout-button">Cerrar sesión</button>
         </nav>
@@ -32,18 +33,35 @@
           <section class="dashboard-panel active" id="panel-summary" data-customer-only>
             <h2>Resumen</h2>
             <div class="summary-cards"><div class="summary-card"><span>Pedidos</span><strong id="order-count">0</strong></div><div class="summary-card"><span>Turnos</span><strong id="appointment-count">0</strong></div><div class="summary-card"><span>Productos en carrito</span><strong id="cart-summary-count">0</strong></div></div>
-            <div class="feature-band account-feature"><img src="assets/combo-desayuno.jpeg" alt="Combo de desayuno saludable"><div class="feature-copy"><p class="eyebrow">Seguí explorando</p><h2>Tu próximo paso está cerca.</h2><div class="cluster"><a class="button" href="tienda.html">Ir a la tienda</a><a class="button ghost" href="nutricion.html">Reservar turno</a></div></div></div>
+            <div class="feature-band account-feature"><div class="account-feature-media"><img src="assets/hero-banner-v2.png" alt="Frutos secos, semillas y cereales seleccionados por Kaizen"></div><div class="feature-copy"><p class="eyebrow">Seguí explorando</p><h2>Tu próximo paso está cerca.</h2><p>Volvé al catálogo o reservá un espacio de acompañamiento nutricional.</p><div class="cluster"><a class="button" href="tienda.html">Ir a la tienda</a><a class="button account-booking-button" href="nutricion.html">Reservar turno</a></div></div></div>
           </section>
           <section class="dashboard-panel" id="panel-orders" data-customer-only><h2>Mis pedidos</h2><div class="record-list" id="orders-list"></div></section>
           <section class="dashboard-panel" id="panel-appointments" data-customer-only><h2>Mis turnos</h2><div class="record-list" id="appointments-list"></div><div class="appointment-calendar" id="appointment-calendar"></div></section>
 
           <section class="dashboard-panel active" id="panel-admin-summary" data-admin-only>
             <h2>Resumen de actividad</h2>
-            <div class="summary-cards"><div class="summary-card"><span>Pedidos recibidos</span><strong id="admin-order-count">0</strong></div><div class="summary-card"><span>Turnos a atender</span><strong id="admin-appointment-count">0</strong></div><div class="summary-card"><span>Pendientes</span><strong id="admin-pending-count">0</strong></div></div>
+            <div class="summary-cards admin-summary-cards"><div class="summary-card"><span>Pedidos recibidos</span><strong id="admin-order-count">0</strong></div><div class="summary-card"><span>Turnos a atender</span><strong id="admin-appointment-count">0</strong></div><div class="summary-card"><span>Pendientes</span><strong id="admin-pending-count">0</strong></div><div class="summary-card"><span>Variantes activas</span><strong id="admin-product-count">0</strong></div></div>
             <div class="admin-welcome"><p class="eyebrow">Panel de la nutricionista</p><h2>Organizá la atención desde un solo lugar.</h2><p>Revisá los pedidos agrupados por fecha, prepará tus próximos turnos y ajustá los horarios disponibles.</p></div>
           </section>
           <section class="dashboard-panel" id="panel-admin-orders" data-admin-only><h2>Pedidos por fecha</h2><div id="admin-orders"></div></section>
           <section class="dashboard-panel" id="panel-admin-appointments" data-admin-only><h2>Turnos a atender</h2><div class="record-list" id="admin-appointments"></div></section>
+          <section class="dashboard-panel" id="panel-admin-catalog" data-admin-only>
+            <div class="admin-panel-heading"><div><p class="eyebrow">Gestión comercial</p><h2>Catálogo y stock</h2><p class="muted">Buscá una variante por nombre o código, editá precios y existencias, o agregá un producto nuevo.</p></div><button class="button" type="button" id="admin-product-new">Agregar producto</button></div>
+            <form class="form-card stack admin-product-form" id="admin-product-form" hidden>
+              <input type="hidden" id="admin-product-id">
+              <h3 id="admin-product-form-title">Agregar producto</h3>
+              <div class="field-grid"><label>Nombre<input id="admin-product-name" required></label><label>Código de artículo<input id="admin-product-article" required></label></div>
+              <div class="field-grid"><label>Categoría<select id="admin-product-category" required></select></label><label>Presentación o unidad<input id="admin-product-unit" placeholder="Ej.: 500 g" required></label></div>
+              <div class="field-grid"><label>Precio<input id="admin-product-price" type="number" min="0" step="1"></label><label>Stock<input id="admin-product-stock" type="number" min="0" step="1" placeholder="Vacío: sin control"></label></div>
+              <label>Condición comercial<input id="admin-product-condition" placeholder="Ej.: precio por paquete"></label>
+              <label>Descripción<textarea id="admin-product-description" placeholder="Descripción breve del producto"></textarea></label>
+              <div class="admin-product-options"><label class="inline-check"><input type="checkbox" id="admin-product-consult"> Precio a consultar</label><label class="inline-check"><input type="checkbox" id="admin-product-promotion"> Es promoción</label><label>Cantidad mínima de la promoción<input id="admin-product-promotion-minimum" type="number" min="1" value="1"></label></div>
+              <p class="form-message" id="admin-product-message" role="status"></p><div class="cluster"><button class="button" type="submit">Guardar producto</button><button class="button ghost" type="button" id="admin-product-cancel">Cancelar</button></div>
+            </form>
+            <div class="admin-catalog-toolbar"><label class="search-wrap"><span class="sr-only">Buscar en el catálogo administrativo</span><input id="admin-product-search" type="search" placeholder="Buscar por nombre, artículo o categoría…"></label></div>
+            <div class="admin-product-list" id="admin-product-list"></div>
+            <div class="catalog-pagination" id="admin-product-pagination"></div>
+          </section>
           <section class="dashboard-panel" id="panel-admin-schedule" data-admin-only>
             <h2>Configurar agenda</h2>
             <form class="form-card stack" id="schedule-form">

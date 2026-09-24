@@ -40,6 +40,7 @@ assert.equal(new Set(products.map((product) => product.id)).size, products.lengt
 assert.equal(new Set(products.map((product) => product.article)).size, products.length);
 assert.equal(products.filter((product) => product.priceStatus === "consult" && product.price === 0).length, 196);
 assert.equal(products.filter((product) => product.isPromotion).length, 804);
+assert.equal(new Set(products.map((product) => product.article.replace(/-V\d+$/i, ""))).size, 428);
 assert.equal(storage.has("kaizen_cart_v1"), false);
 assert.equal(window.KaizenStore.getCartSummary().quantity, 0);
 
@@ -59,4 +60,31 @@ window.KaizenStore.placeOrder({ payment: "whatsapp", delivery: "pickup" });
 assert.equal(window.KaizenStore.hasUsedProductPromotion(promotion.id), true);
 assert.throws(() => window.KaizenStore.addToCart(promotion.id), /ya fue utilizada/);
 
-console.log("Catálogo integrado validado correctamente.");
+localStorage.setItem("kaizen_session_v1", JSON.stringify({ id: "usr-admin", role: "admin", name: "Equipo Kaizen", email: "admin@kaizen.demo" }));
+const created = window.KaizenStore.saveCatalogProduct({
+  name: "Producto de prueba",
+  article: "TEST-001",
+  category: "FRUTOS SECOS",
+  unit: "250 g",
+  price: 2500,
+  stock: 2,
+  condition: "Precio por paquete",
+  description: "Producto creado para validar la administración del catálogo."
+});
+assert.equal(window.KaizenStore.getCatalogProducts().length, 2095);
+assert.equal(created.stock, 2);
+const edited = window.KaizenStore.saveCatalogProduct({ ...created, price: 2800, stock: 3 });
+assert.equal(edited.price, 2800);
+assert.equal(edited.stock, 3);
+
+localStorage.setItem("kaizen_session_v1", JSON.stringify(customer));
+assert.throws(() => window.KaizenStore.addToCart(created.id, 4), /Solo quedan 3 unidades/);
+window.KaizenStore.addToCart(created.id, 2);
+window.KaizenStore.placeOrder({ payment: "whatsapp", delivery: "pickup" });
+assert.equal(window.KaizenStore.getCatalogProducts().find((product) => product.id === created.id).stock, 1);
+
+localStorage.setItem("kaizen_session_v1", JSON.stringify({ id: "usr-admin", role: "admin", name: "Equipo Kaizen", email: "admin@kaizen.demo" }));
+window.KaizenStore.removeCatalogProduct(created.id);
+assert.equal(window.KaizenStore.getCatalogProducts().some((product) => product.id === created.id), false);
+
+console.log("Catálogo agrupado, stock y administración validados correctamente.");

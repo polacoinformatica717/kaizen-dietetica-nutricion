@@ -6,8 +6,11 @@
     orders: "kaizen_orders_v1",
     appointments: "kaizen_appointments_v1",
     schedule: "kaizen_schedule_v1",
-    addresses: "kaizen_addresses_v1"
+    addresses: "kaizen_addresses_v1",
+    catalog: "kaizen_catalog_v1"
   };
+
+  const BASE_PRODUCTS = Array.isArray(window.KAIZEN_PRODUCTS) ? window.KAIZEN_PRODUCTS.map((product) => ({ ...product, stock: product.stock ?? null })) : [];
 
   const DEFAULT_SCHEDULE = {
     mode: "auto",
@@ -20,6 +23,40 @@
     catch { return fallback; }
   };
   const write = (key, value) => localStorage.setItem(key, JSON.stringify(value));
+  const defaultCatalogState = () => ({ edits: {}, custom: [], deletedIds: [] });
+  const normalizeCatalogState = (state = {}) => ({
+    edits: state.edits && typeof state.edits === "object" ? state.edits : {},
+    custom: Array.isArray(state.custom) ? state.custom : [],
+    deletedIds: Array.isArray(state.deletedIds) ? [...new Set(state.deletedIds.map(Number))] : []
+  });
+  const catalogState = () => normalizeCatalogState(read(KEYS.catalog, defaultCatalogState()));
+  const normalizeStock = (value) => value === "" || value === null || value === undefined ? null : Math.max(0, Math.floor(Number(value) || 0));
+  function getCatalogProducts() {
+    const state = catalogState();
+    const removed = new Set(state.deletedIds);
+    return [
+      ...BASE_PRODUCTS.filter((product) => !removed.has(product.id)).map((product) => ({ ...product, ...(state.edits[product.id] || {}), stock: normalizeStock((state.edits[product.id] || {}).stock ?? product.stock) })),
+      ...state.custom.filter((product) => !removed.has(product.id)).map((product) => ({ ...product, stock: normalizeStock(product.stock) }))
+    ];
+  }
+  const refreshCatalogCache = () => { window.KAIZEN_PRODUCTS = getCatalogProducts(); return window.KAIZEN_PRODUCTS; };
+  const findProduct = (productId) => getCatalogProducts().find((item) => item.id === Number(productId));
+  const productHasManagedStock = (product) => Number.isInteger(product?.stock);
+  const stockLabel = (product) => productHasManagedStock(product) ? `${product.stock} unidades` : "Sin control de stock";
+  function persistCatalogProduct(product) {
+    const state = catalogState();
+    const base = BASE_PRODUCTS.find((item) => item.id === Number(product.id));
+    if (base) state.edits[base.id] = { ...state.edits[base.id], ...product, id: base.id };
+    else {
+      const index = state.custom.findIndex((item) => item.id === Number(product.id));
+      if (index >= 0) state.custom[index] = product;
+      else state.custom.push(product);
+    }
+    state.deletedIds = state.deletedIds.filter((id) => id !== Number(product.id));
+    write(KEYS.catalog, state);
+    refreshCatalogCache();
+    return findProduct(product.id);
+  }
   const normalizeEmail = (email) => String(email || "").trim().toLowerCase();
   const normalizeScheduleChannel = (channel, fallback) => {
     const weekdays = Array.isArray(channel?.weekdays) ? [...new Set(channel.weekdays.map(Number).filter((day) => day >= 0 && day <= 6))] : fallback.weekdays;
@@ -74,6 +111,7 @@
       if (current) write(KEYS.session, publicUser(current));
     }
     write(KEYS.schedule, normalizeSchedule(read(KEYS.schedule, DEFAULT_SCHEDULE)));
+    refreshCatalogCache();
   }
 
   async function register({ name, email, password, birthDate, phone, locality }) {
@@ -133,7 +171,7 @@
     return product?.promotionKey || (product?.isPromotion ? product.article : null);
   }
   function hasUsedProductPromotion(productId, userId = null) {
-    const product = window.KAIZEN_PRODUCTS.find((item) => item.id === Number(productId));
+    const product = findProduct(productId);
     const key = productPromotionKey(product);
     const session = getSession();
     const customerId = userId || (session?.role === "customer" ? session.id : null);
@@ -145,7 +183,7 @@
   function saveCart(cart) { write(KEYS.cart, cart); window.dispatchEvent(new CustomEvent("kaizen:cart")); }
   function addToCart(productId, quantity = 1) {
     const session = requireCustomer("realizar compras");
-    const product = window.KAIZEN_PRODUCTS.find((item) => item.id === Number(productId));
+    const product = findProduct(productId);
     if (!product) throw new Error("Producto no encontrado.");
     if (isConsultProduct(product)) throw new Error("Este producto requiere consultar el precio antes de comprar.");
     if (product.isPromotion && !session) throw new Error("Iniciá sesión para utilizar una promoción.");
@@ -154,8 +192,10 @@
     const requested = Math.max(minimum, Number(quantity) || 1);
     const cart = getCart();
     const line = cart.find((item) => item.id === product.id);
-    if (line) line.quantity = Math.max(minimum, line.quantity + Math.max(1, Number(quantity) || 1));
-    else cart.push({ id: product.id, quantity: requested });
+    const nextQuantity = line ? Math.max(minimum, line.quantity + Math.max(1, Number(quantity) || 1)) : requested;
+    if (productHasManagedStock(product) && nextQuantity > product.stock) throw new Error(`Solo quedan ${product.stock} unidades disponibles.`);
+    if (line) line.quantity = nextQuantity;
+    else cart.push({ id: product.id, quantity: nextQuantity });
     saveCart(cart);
     return getCartSummary();
   }
@@ -163,19 +203,22 @@
     requireCustomer("modificar el carrito");
     let cart = getCart();
     const id = Number(productId);
-    const product = window.KAIZEN_PRODUCTS.find((item) => item.id === id);
+    const product = findProduct(id);
     if (!product) throw new Error("Producto no encontrado.");
     if (quantity <= 0) cart = cart.filter((item) => item.id !== id);
     else {
       const minimum = product.isPromotion ? Math.max(1, Number(product.promotionMinimumQuantity) || 1) : 1;
-      cart = cart.map((item) => item.id === id ? { ...item, quantity: Math.max(minimum, Number(quantity) || minimum) } : item);
+      const nextQuantity = Math.max(minimum, Number(quantity) || minimum);
+      if (productHasManagedStock(product) && nextQuantity > product.stock) throw new Error(`Solo quedan ${product.stock} unidades disponibles.`);
+      cart = cart.map((item) => item.id === id ? { ...item, quantity: nextQuantity } : item);
     }
     saveCart(cart);
     return getCartSummary();
   }
   function clearCart() { saveCart([]); }
   function getCartSummary() {
-    const lines = getCart().map((line) => ({ ...line, product: window.KAIZEN_PRODUCTS.find((item) => item.id === line.id) })).filter((line) => line.product);
+    const products = getCatalogProducts();
+    const lines = getCart().map((line) => ({ ...line, product: products.find((item) => item.id === line.id) })).filter((line) => line.product);
     return {
       lines,
       quantity: lines.reduce((sum, line) => sum + line.quantity, 0),
@@ -219,6 +262,9 @@
     if (!user) throw new Error("Necesitás iniciar sesión para finalizar la compra.");
     const cart = getCartSummary();
     if (!cart.lines.length) throw new Error("El carrito está vacío.");
+    for (const line of cart.lines) {
+      if (productHasManagedStock(line.product) && line.quantity > line.product.stock) throw new Error(`No hay stock suficiente de ${line.product.name}. Disponible: ${line.product.stock}.`);
+    }
     for (const line of cart.lines.filter((item) => item.product.isPromotion)) {
       if (hasUsedProductPromotion(line.product.id, user.id)) throw new Error(`La promoción ${line.product.name} ya fue utilizada por esta cuenta.`);
       const minimum = Math.max(1, Number(line.product.promotionMinimumQuantity) || 1);
@@ -250,6 +296,7 @@
     const orders = read(KEYS.orders, []);
     orders.unshift(order);
     write(KEYS.orders, orders);
+    cart.lines.filter((line) => productHasManagedStock(line.product)).forEach((line) => persistCatalogProduct({ ...line.product, stock: line.product.stock - line.quantity }));
     clearCart();
     return order;
   }
@@ -361,10 +408,65 @@
     write(KEYS.appointments, appointments);
   }
 
+  function saveCatalogProduct(input = {}) {
+    const session = getSession();
+    if (session?.role !== "admin") throw new Error("Solo la administración puede modificar el catálogo.");
+    const products = getCatalogProducts();
+    const existing = input.id ? products.find((item) => item.id === Number(input.id)) : null;
+    const name = String(input.name || "").trim();
+    const article = String(input.article || "").trim().toUpperCase();
+    const category = String(input.category || "").trim();
+    const unit = String(input.unit || "").trim();
+    if (name.length < 2) throw new Error("Ingresá el nombre del producto.");
+    if (!article) throw new Error("Ingresá un código de artículo.");
+    if (products.some((item) => item.article.toUpperCase() === article && item.id !== existing?.id)) throw new Error("Ya existe un producto con ese código de artículo.");
+    if (!window.KAIZEN_CATEGORIES.some((item) => item.name === category)) throw new Error("Elegí una categoría válida.");
+    if (!unit) throw new Error("Ingresá la presentación o unidad.");
+    const priceStatus = input.priceStatus === "consult" ? "consult" : "available";
+    const price = priceStatus === "consult" ? 0 : Math.max(0, Number(input.price) || 0);
+    if (priceStatus === "available" && price <= 0) throw new Error("Ingresá un precio mayor que cero o marcá precio a consultar.");
+    const id = existing?.id || Math.max(0, ...BASE_PRODUCTS.map((item) => item.id), ...catalogState().custom.map((item) => Number(item.id) || 0)) + 1;
+    const isPromotion = Boolean(input.isPromotion);
+    return persistCatalogProduct({
+      ...(existing || {}),
+      id,
+      article,
+      name,
+      description: String(input.description || `${name}. Presentación: ${unit}.`).trim(),
+      category,
+      price,
+      unit,
+      condition: String(input.condition || "").trim(),
+      priceStatus,
+      image: window.KAIZEN_CATEGORIES.find((item) => item.name === category)?.image || "opciones-especiales.jpeg",
+      isPromotion,
+      promotionKey: isPromotion ? (existing?.promotionKey || article) : null,
+      promotionMinimumQuantity: isPromotion ? Math.max(1, Number(input.promotionMinimumQuantity) || 1) : 1,
+      promotionLimitPerCustomer: isPromotion ? 1 : null,
+      stock: normalizeStock(input.stock),
+      sourceRow: existing?.sourceRow || null,
+      custom: existing?.custom || !BASE_PRODUCTS.some((item) => item.id === id)
+    });
+  }
+
+  function removeCatalogProduct(productId) {
+    const session = getSession();
+    if (session?.role !== "admin") throw new Error("Solo la administración puede quitar productos.");
+    const product = findProduct(productId);
+    if (!product) throw new Error("Producto no encontrado.");
+    const state = catalogState();
+    if (BASE_PRODUCTS.some((item) => item.id === product.id)) state.deletedIds = [...new Set([...state.deletedIds, product.id])];
+    else state.custom = state.custom.filter((item) => item.id !== product.id);
+    write(KEYS.catalog, state);
+    refreshCatalogCache();
+    return product;
+  }
+
   window.KaizenStore = {
     initialize, register, login, getSession, logout,
     getCart, addToCart, updateCart, clearCart, getCartSummary, hasUsedProductPromotion,
     getDeliveryAddress, saveDeliveryAddress, placeOrder, getOrders,
-    getSchedule, saveSchedule, getOccupiedSlots, hasUsedPromo, createAppointment, getAppointments, updateAppointmentStatus
+    getSchedule, saveSchedule, getOccupiedSlots, hasUsedPromo, createAppointment, getAppointments, updateAppointmentStatus,
+    getCatalogProducts, saveCatalogProduct, removeCatalogProduct, stockLabel
   };
 })();

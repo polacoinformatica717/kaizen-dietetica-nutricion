@@ -15,18 +15,31 @@
   <div id="site-shell"></div>
   <main>
     <section class="page-hero">
-      <div class="container"><p class="eyebrow">Consultorio nutricional</p><h1>Un turno pensado para vos.</h1><p class="lead">Elegí el tipo de consulta, la modalidad presencial o virtual y uno de los horarios disponibles. La política de confirmación se informa antes de reservar.</p></div>
+      <div class="container"><p class="eyebrow">Consultorio nutricional</p><h1>Un turno pensado para vos.</h1><p class="lead">Antes de reservar, revisá la duración, modalidad, promoción y condiciones. Después elegí el horario que mejor te quede.</p></div>
     </section>
 
-    <section class="section">
+    <section class="consultation-guide-section" aria-labelledby="consultation-guide-title">
+      <div class="container">
+        <div class="consultation-guide-heading"><div><p class="eyebrow">Información importante</p><h2 id="consultation-guide-title">Todo claro antes de elegir.</h2></div><p>Leé estas condiciones antes de avanzar con la reserva.</p></div>
+        <div class="consultation-guide-grid">
+          <article class="consultation-guide-card"><span class="guide-number">01</span><h3>Consulta inicial</h3><strong>Hasta 40 minutos</strong><p>Evaluación de hábitos, necesidades y objetivos para definir el acompañamiento.</p></article>
+          <article class="consultation-guide-card"><span class="guide-number">02</span><h3>Controles</h3><strong>20 minutos</strong><p>Seguimiento de avances, ajustes y próximos pasos del plan nutricional.</p></article>
+          <article class="consultation-guide-card featured"><span class="guide-number">03</span><h3>Promoción</h3><strong>Inicial + 2 controles</strong><p>Reservás tres encuentros en una sola operación: el primero y los dos controles semanales siguientes, siempre el mismo día y horario. Es de único uso por cliente.</p></article>
+          <article class="consultation-guide-card"><span class="guide-number">04</span><h3>Modalidad</h3><strong>Presencial o virtual</strong><p>Elegí cómo querés atenderte. Cada modalidad tiene su propia agenda disponible.</p></article>
+        </div>
+        <div class="policy-banner"><div><span class="policy-icon">24 h</span><p><strong>Reprogramación:</strong> avisá con al menos 24 horas de anticipación. Fuera de ese plazo se pierde el pago realizado.</p></div><div><span class="policy-icon">50%</span><p><strong>Cancelación sin reprogramar:</strong> se retiene la mitad de lo abonado.</p></div></div>
+      </div>
+    </section>
+
+    <section class="section booking-section">
       <div class="container booking-layout">
         <div class="booking-intro">
-          <p class="eyebrow">Cómo funciona</p>
-          <h2>Tu consulta, sin vueltas.</h2>
-          <p class="lead">Reservá con tu cuenta y consultá el estado del turno desde “Mi cuenta”.</p>
-          <ul class="check-list"><li>Consulta inicial de hasta 40 minutos</li><li>Controles de 20 minutos</li><li>Atención presencial o virtual</li><li>Recordatorio dentro de tu cuenta</li></ul>
+          <p class="eyebrow">Reserva paso a paso</p>
+          <h2>Elegí con tranquilidad.</h2>
+          <p class="lead">Seleccioná el tipo de consulta, la modalidad, la fecha y el horario. Antes de confirmar vas a ver un resumen completo.</p>
+          <ol class="booking-process"><li>Elegí el tipo de consulta.</li><li>Seleccioná presencial o virtual.</li><li>Revisá las fechas y horarios disponibles.</li><li>Confirmá el resumen y las condiciones.</li></ol>
           <div class="booking-summary"><strong>Política actual:</strong> <span id="booking-mode">Cargando…</span></div>
-          <div class="appointment-policy"><p class="eyebrow">Reprogramaciones y cancelaciones</p><p>Para reprogramar un turno debés avisar con al menos <strong>24 horas de anticipación</strong>. Si avisás fuera de ese plazo, se pierde el pago realizado.</p><p>Si cancelás el turno sin reprogramarlo, se retiene el <strong>50% de lo abonado</strong>.</p></div>
+          <div class="appointment-policy"><p class="eyebrow">Recordatorio</p><p>Podés revisar todos tus turnos, modalidad y estado desde la sección <strong>Mi cuenta</strong>.</p></div>
         </div>
 
         <form class="form-card booking-steps" id="booking-form">
@@ -36,6 +49,7 @@
           <div class="booking-step"><h3>4. Horario</h3><div class="slot-row" id="slot-row"></div></div>
           <label>Comentario para la nutricionista<textarea id="appointment-notes" placeholder="Opcional: contanos brevemente el motivo de la consulta"></textarea></label>
           <div class="booking-summary" id="booking-summary">Tu selección aparecerá acá.</div>
+          <label class="policy-accept"><input type="checkbox" id="appointment-policy-accept" required><span>Leí y comprendo las condiciones de reprogramación y cancelación indicadas arriba.</span></label>
           <p class="form-message" id="booking-result" role="status"></p>
           <button class="button" type="submit">Reservar turno</button>
           <p class="fine-print">Para confirmar la reserva te pediremos iniciar sesión o crear una cuenta. Al reservar aceptás la política de reprogramación y cancelación informada en esta página.</p>

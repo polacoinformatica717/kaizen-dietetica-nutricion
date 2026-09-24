@@ -15,7 +15,7 @@
   <div id="site-shell"></div>
   <main>
     <section class="page-hero">
-      <div class="container"><p class="eyebrow">Tienda Kaizen</p><h1>Todo lo que buscás, en un catálogo claro.</h1><p class="lead">Filtrá por categoría, buscá por nombre o código de artículo y ordená los resultados por precio.</p></div>
+      <div class="container"><p class="eyebrow">Tienda Kaizen</p><h1>Todo lo que buscás, en un catálogo claro.</h1><p class="lead">Cada producto reúne sus presentaciones, precios y promociones en una sola ficha. Filtrá, buscá y avanzá por páginas livianas.</p></div>
     </section>
 
     <section class="section compact">
@@ -24,16 +24,17 @@
           <h2>Categorías</h2>
           <div class="chip-list" id="category-chips"></div>
           <hr style="border:0;border-top:1px solid var(--line);margin:22px 0">
-          <p class="fine-print">Catálogo actualizado con sus presentaciones y promociones. Los artículos sin importe indican “Consultar precio”.</p>
+          <p class="fine-print">Las variantes del mismo producto están agrupadas. Elegí la presentación desde el desplegable de cada ficha. Los artículos sin importe indican “Consultar precio”.</p>
         </aside>
         <div>
           <div class="catalog-toolbar">
             <label class="search-wrap"><span class="sr-only">Buscar producto</span><input id="catalog-search" type="search" placeholder="Buscar por nombre o artículo…" autocomplete="off"></label>
             <label><span class="sr-only">Ordenar productos</span><select id="catalog-sort"><option value="default">Orden recomendado</option><option value="asc">Precio: menor a mayor</option><option value="desc">Precio: mayor a menor</option></select></label>
-            <label><span class="sr-only">Cantidad de productos para mostrar</span><select id="catalog-quantity"><option value="12">Mostrar 12</option><option value="24">Mostrar 24</option><option value="36" selected>Mostrar 36</option><option value="72">Mostrar 72</option><option value="144">Mostrar 144</option><option value="all">Mostrar todos</option></select></label>
+            <label><span class="sr-only">Cantidad de productos por página</span><select id="catalog-quantity"><option value="12">12 por página</option><option value="24" selected>24 por página</option><option value="36">36 por página</option><option value="48">48 por página</option></select></label>
           </div>
           <div class="catalog-status"><span id="catalog-count">0 opciones</span><span>Precios expresados en ARS</span></div>
           <div class="product-grid" id="catalog-grid" aria-live="polite"></div>
+          <nav class="catalog-pagination" id="catalog-pagination" aria-label="Páginas del catálogo"></nav>
         </div>
       </div>
     </section>

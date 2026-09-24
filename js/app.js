@@ -81,6 +81,7 @@
   function productActions(product) {
     const session = window.KaizenStore.getSession();
     if (session?.role === "admin") return `<button class="button ghost small" disabled>Solo clientes</button>`;
+    if (product.stock === 0) return `<button class="button ghost small" disabled>Sin stock</button>`;
     if (isConsultPrice(product)) return `<button class="button ghost small" data-consult-product="${product.id}">Consultar</button>`;
     const line = window.KaizenStore.getCartSummary().lines.find((item) => item.product.id === product.id);
     if (!line) return `<button class="button small" data-add-product="${product.id}">Agregar</button>`;
@@ -93,6 +94,34 @@
         <div class="product-image"><img src="${window.KAIZEN_CATEGORY_IMAGE(product.category)}" alt="${escapeHtml(product.name)}"><span class="tag">${escapeHtml(product.unit)}</span></div>
         <div class="product-body"><span class="product-meta">${escapeHtml(product.category)} · ${escapeHtml(product.article)}${product.isPromotion ? " · Promoción" : ""}</span><h3>${escapeHtml(product.name)}</h3><p>${escapeHtml(product.description)}</p><div class="product-bottom"><span class="price">${productPriceLabel(product)}</span><div data-product-actions="${product.id}">${productActions(product)}</div></div></div>
       </article>`;
+  }
+
+  const productBaseArticle = (product) => String(product.article || "").replace(/-V\d+$/i, "");
+  function groupCatalogProducts(products) {
+    const groups = new Map();
+    products.forEach((product) => {
+      const key = `${product.category}::${productBaseArticle(product)}`;
+      if (!groups.has(key)) groups.set(key, { key, article: productBaseArticle(product), name: product.name, category: product.category, variants: [] });
+      groups.get(key).variants.push(product);
+    });
+    return [...groups.values()].map((group) => ({ ...group, variants: group.variants.sort((a, b) => Number(a.price) - Number(b.price) || a.article.localeCompare(b.article)) }));
+  }
+  const groupMinimumPrice = (group) => {
+    const prices = group.variants.filter((product) => !isConsultPrice(product)).map((product) => Number(product.price));
+    return prices.length ? Math.min(...prices) : Number.POSITIVE_INFINITY;
+  };
+  const variantOptionLabel = (product) => `${product.unit}${product.isPromotion ? ` · Promo desde ${product.promotionMinimumQuantity} u.` : ""} · ${productPriceLabel(product)}${product.stock === 0 ? " · Sin stock" : ""}`;
+  const selectedVariant = (group) => group.variants.find((product) => !product.isPromotion && product.stock !== 0 && !isConsultPrice(product)) || group.variants.find((product) => product.stock !== 0) || group.variants[0];
+  function variantDetailMarkup(product) {
+    const stock = product.stock === null || product.stock === undefined ? "Disponibilidad a confirmar" : product.stock === 0 ? "Sin stock" : `${product.stock} disponibles`;
+    return `<div class="variant-detail"><p>${escapeHtml(product.condition || product.description)}</p><div class="product-bottom"><div><span class="price">${productPriceLabel(product)}</span><small class="stock-label ${product.stock === 0 ? "empty" : ""}">${escapeHtml(stock)}</small></div><div data-product-actions="${product.id}">${productActions(product)}</div></div></div>`;
+  }
+  function productGroupCard(group) {
+    const selected = selectedVariant(group);
+    return `<article class="product-card grouped-product-card" data-product-group="${escapeHtml(group.key)}">
+      <div class="product-image"><img src="${window.KAIZEN_CATEGORY_IMAGE(group.category)}" alt="${escapeHtml(group.name)}"><span class="tag">${group.variants.length} ${group.variants.length === 1 ? "opción" : "opciones"}</span></div>
+      <div class="product-body"><span class="product-meta">${escapeHtml(group.category)} · ${escapeHtml(group.article)}</span><h3>${escapeHtml(group.name)}</h3><p class="group-helper">Elegí una presentación para ver su condición, precio y disponibilidad.</p><label class="variant-picker">Presentación<select data-product-variant>${group.variants.map((product) => `<option value="${product.id}" ${product.id === selected.id ? "selected" : ""}>${escapeHtml(variantOptionLabel(product))}</option>`).join("")}</select></label><div data-variant-detail>${variantDetailMarkup(selected)}</div></div>
+    </article>`;
   }
 
   function refreshProductActions() {
@@ -130,6 +159,13 @@
         } catch (error) { toast(error.message); }
       }
     });
+    document.addEventListener("change", (event) => {
+      const picker = event.target.closest("[data-product-variant]");
+      if (!picker) return;
+      const card = picker.closest("[data-product-group]");
+      const product = window.KaizenStore.getCatalogProducts().find((item) => item.id === Number(picker.value));
+      if (card && product) card.querySelector("[data-variant-detail]").innerHTML = variantDetailMarkup(product);
+    });
     window.addEventListener("kaizen:cart", updateCartBadge);
   }
 
@@ -154,22 +190,32 @@
     const quantity = document.getElementById("catalog-quantity");
     const chips = document.getElementById("category-chips");
     const status = document.getElementById("catalog-count");
+    const pagination = document.getElementById("catalog-pagination");
     let category = new URLSearchParams(location.search).get("categoria") || "Todos";
+    let page = 1;
     function render() {
       const query = search.value.trim().toLowerCase();
-      let products = window.KAIZEN_PRODUCTS.filter((product) => (category === "Todos" || product.category === category) && (!query || `${product.name} ${product.article} ${product.description} ${product.condition}`.toLowerCase().includes(query)));
-      if (sort.value === "asc") products.sort((a, b) => compareProductPrices(a, b, 1));
-      if (sort.value === "desc") products.sort((a, b) => compareProductPrices(a, b, -1));
-      const selectedLimit = quantity.value === "all" ? products.length : Number(quantity.value);
-      const visibleProducts = products.slice(0, selectedLimit);
-      grid.innerHTML = visibleProducts.length ? visibleProducts.map(productCard).join("") : `<div class="empty-state"><h3>No encontramos coincidencias</h3><p class="muted">Probá con otro nombre, artículo o categoría.</p></div>`;
-      status.textContent = products.length ? `${products.length} ${products.length === 1 ? "opción" : "opciones"} · mostrando ${visibleProducts.length}` : "0 opciones";
+      let groups = groupCatalogProducts(window.KaizenStore.getCatalogProducts()).filter((group) => {
+        const searchable = `${group.name} ${group.article} ${group.category} ${group.variants.map((product) => `${product.article} ${product.unit} ${product.description} ${product.condition}`).join(" ")}`.toLowerCase();
+        return (category === "Todos" || group.category === category) && (!query || searchable.includes(query));
+      });
+      if (sort.value === "asc") groups.sort((a, b) => groupMinimumPrice(a) - groupMinimumPrice(b));
+      if (sort.value === "desc") groups.sort((a, b) => groupMinimumPrice(b) - groupMinimumPrice(a));
+      const pageSize = Number(quantity.value) || 24;
+      const totalPages = Math.max(1, Math.ceil(groups.length / pageSize));
+      page = Math.min(page, totalPages);
+      const visibleGroups = groups.slice((page - 1) * pageSize, page * pageSize);
+      const variantCount = groups.reduce((sum, group) => sum + group.variants.length, 0);
+      grid.innerHTML = visibleGroups.length ? visibleGroups.map(productGroupCard).join("") : `<div class="empty-state"><h3>No encontramos coincidencias</h3><p class="muted">Probá con otro nombre, artículo o categoría.</p></div>`;
+      status.textContent = groups.length ? `${groups.length} ${groups.length === 1 ? "producto" : "productos"} · ${variantCount} presentaciones · página ${page} de ${totalPages}` : "0 productos";
+      pagination.innerHTML = groups.length > pageSize ? `<button class="button ghost small" type="button" data-catalog-page="${page - 1}" ${page === 1 ? "disabled" : ""}>‹ Anterior</button><span>Página <strong>${page}</strong> de ${totalPages}</span><button class="button ghost small" type="button" data-catalog-page="${page + 1}" ${page === totalPages ? "disabled" : ""}>Siguiente ›</button>` : "";
       chips.innerHTML = ["Todos", ...window.KAIZEN_CATEGORIES.map((item) => item.name)].map((name) => `<button class="chip ${name === category ? "active" : ""}" data-category="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join("");
     }
-    search.addEventListener("input", render);
-    sort.addEventListener("change", render);
-    quantity.addEventListener("change", render);
-    chips.addEventListener("click", (event) => { const button = event.target.closest("[data-category]"); if (button) { category = button.dataset.category; render(); } });
+    search.addEventListener("input", () => { page = 1; render(); });
+    sort.addEventListener("change", () => { page = 1; render(); });
+    quantity.addEventListener("change", () => { page = 1; render(); });
+    chips.addEventListener("click", (event) => { const button = event.target.closest("[data-category]"); if (button) { category = button.dataset.category; page = 1; render(); } });
+    pagination.addEventListener("click", (event) => { const button = event.target.closest("[data-catalog-page]"); if (button && !button.disabled) { page = Number(button.dataset.catalogPage); render(); grid.scrollIntoView({ behavior: "smooth", block: "start" }); } });
     render();
   }
 
@@ -260,6 +306,8 @@
     form.addEventListener("submit", (event) => {
       event.preventDefault();
       if (!window.KaizenStore.getSession()) { window.location.href = "acceso.html?return=nutricion.html"; return; }
+      const policyAccept = document.getElementById("appointment-policy-accept");
+      if (policyAccept && !policyAccept.checked) { result.textContent = "Confirmá que leíste las condiciones de reprogramación y cancelación."; result.className = "form-message error"; policyAccept.focus(); return; }
       try {
         const appointment = window.KaizenStore.createAppointment({ ...selection, notes: document.getElementById("appointment-notes").value });
         const bundle = appointment.bundleAppointments || [appointment];
@@ -375,7 +423,10 @@
   function appointmentCard(appointment, admin = false) {
     const modality = appointment.modality || "Presencial";
     const duration = Number(appointment.durationMinutes) || appointmentDurationMinutes(appointment.type);
-    return `<article class="record-card"><div class="record-head"><div><strong>${escapeHtml(appointment.type)}</strong><br><small class="muted">${escapeHtml(appointment.id)}${admin ? ` · ${escapeHtml(appointment.userName)}` : ""}</small></div><span class="status ${appointment.status === "Confirmado" ? "confirmed" : "pending"}">${escapeHtml(appointment.status)}</span></div><p>${localDate(appointment.date).toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })} · ${escapeHtml(appointment.time)} · ${escapeHtml(modality)} · ${duration} min</p>${admin ? `<p class="fine-print">${escapeHtml(appointment.userPhone || "Sin teléfono")} · ${escapeHtml(appointment.userEmail || "Sin email")}${appointment.notes ? ` · ${escapeHtml(appointment.notes)}` : ""}</p>` : ""}${admin && appointment.status === "Pendiente" ? `<div class="cluster"><button class="button small" data-appointment-status="Confirmado" data-appointment-id="${appointment.id}">Confirmar</button><button class="button ghost small" data-appointment-status="Cancelado" data-appointment-id="${appointment.id}">Rechazar</button></div>` : ""}</article>`;
+    const phoneDigits = String(appointment.userPhone || "").replace(/\D/g, "");
+    const whatsappPhone = phoneDigits.startsWith("54") ? phoneDigits : phoneDigits.length >= 10 ? `549${phoneDigits.replace(/^0/, "")}` : "";
+    const contactActions = admin ? `<div class="cluster appointment-contact-actions">${whatsappPhone ? `<a class="button small whatsapp-button" href="https://wa.me/${whatsappPhone}?text=${encodeURIComponent(`Hola ${appointment.userName || ""}, te contactamos desde Kaizen por tu turno del ${appointment.date} a las ${appointment.time}.`)}" target="_blank" rel="noopener noreferrer">Contactar por WhatsApp</a>` : ""}${appointment.userEmail ? `<a class="button ghost small" href="mailto:${encodeURIComponent(appointment.userEmail)}?subject=${encodeURIComponent("Tu turno en Kaizen")}">Enviar correo</a>` : ""}</div>` : "";
+    return `<article class="record-card"><div class="record-head"><div><strong>${escapeHtml(appointment.type)}</strong><br><small class="muted">${escapeHtml(appointment.id)}${admin ? ` · ${escapeHtml(appointment.userName)}` : ""}</small></div><span class="status ${appointment.status === "Confirmado" ? "confirmed" : "pending"}">${escapeHtml(appointment.status)}</span></div><p>${localDate(appointment.date).toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })} · ${escapeHtml(appointment.time)} · ${escapeHtml(modality)} · ${duration} min</p>${admin ? `<p class="fine-print">${escapeHtml(appointment.userPhone || "Sin teléfono")} · ${escapeHtml(appointment.userEmail || "Sin email")}${appointment.notes ? ` · ${escapeHtml(appointment.notes)}` : ""}</p>` : ""}${admin && appointment.status === "Pendiente" ? `<div class="cluster"><button class="button small" data-appointment-status="Confirmado" data-appointment-id="${appointment.id}">Confirmar</button><button class="button ghost small" data-appointment-status="Cancelado" data-appointment-id="${appointment.id}">Rechazar</button></div>` : ""}${contactActions}</article>`;
   }
 
   function renderAppointmentCalendar(appointments) {
@@ -452,6 +503,7 @@
     document.getElementById("admin-order-count").textContent = orders.length;
     document.getElementById("admin-appointment-count").textContent = appointments.filter((item) => item.status !== "Cancelado").length;
     document.getElementById("admin-pending-count").textContent = appointments.filter((item) => item.status === "Pendiente").length;
+    document.getElementById("admin-product-count").textContent = window.KaizenStore.getCatalogProducts().length;
     document.getElementById("admin-orders").innerHTML = groupOrdersByMonthAndDay(orders);
     const list = document.getElementById("admin-appointments");
     list.innerHTML = appointments.length ? appointments.map((item) => appointmentCard(item, true)).join("") : `<div class="empty-state"><p>No hay turnos registrados.</p></div>`;
@@ -462,6 +514,90 @@
       location.reload();
     });
     initSchedule();
+    initAdminCatalog();
+  }
+
+  function initAdminCatalog() {
+    const form = document.getElementById("admin-product-form");
+    if (!form) return;
+    const search = document.getElementById("admin-product-search");
+    const list = document.getElementById("admin-product-list");
+    const pagination = document.getElementById("admin-product-pagination");
+    const message = document.getElementById("admin-product-message");
+    const categorySelect = document.getElementById("admin-product-category");
+    categorySelect.innerHTML = window.KAIZEN_CATEGORIES.map((category) => `<option value="${escapeHtml(category.name)}">${escapeHtml(category.name)}</option>`).join("");
+    let page = 1;
+    const pageSize = 24;
+    const clearForm = () => {
+      form.reset();
+      document.getElementById("admin-product-id").value = "";
+      document.getElementById("admin-product-form-title").textContent = "Agregar producto";
+      document.getElementById("admin-product-stock").value = "";
+      form.hidden = false;
+      message.textContent = "";
+    };
+    const editProduct = (product) => {
+      document.getElementById("admin-product-id").value = product.id;
+      document.getElementById("admin-product-form-title").textContent = `Editar ${product.name}`;
+      document.getElementById("admin-product-name").value = product.name;
+      document.getElementById("admin-product-article").value = product.article;
+      categorySelect.value = product.category;
+      document.getElementById("admin-product-unit").value = product.unit;
+      document.getElementById("admin-product-price").value = product.price || "";
+      document.getElementById("admin-product-stock").value = product.stock ?? "";
+      document.getElementById("admin-product-condition").value = product.condition || "";
+      document.getElementById("admin-product-description").value = product.description || "";
+      document.getElementById("admin-product-consult").checked = isConsultPrice(product);
+      document.getElementById("admin-product-promotion").checked = Boolean(product.isPromotion);
+      document.getElementById("admin-product-promotion-minimum").value = product.promotionMinimumQuantity || 1;
+      form.hidden = false;
+      form.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+    const render = () => {
+      const query = search.value.trim().toLowerCase();
+      const products = window.KaizenStore.getCatalogProducts().filter((product) => !query || `${product.name} ${product.article} ${product.category} ${product.unit}`.toLowerCase().includes(query));
+      const totalPages = Math.max(1, Math.ceil(products.length / pageSize));
+      page = Math.min(page, totalPages);
+      const visible = products.slice((page - 1) * pageSize, page * pageSize);
+      list.innerHTML = visible.length ? visible.map((product) => `<article class="admin-product-row"><div><span class="product-meta">${escapeHtml(product.category)} · ${escapeHtml(product.article)}</span><strong>${escapeHtml(product.name)}</strong><small>${escapeHtml(product.unit)} · ${productPriceLabel(product)} · ${escapeHtml(window.KaizenStore.stockLabel(product))}</small></div><div class="cluster"><button class="button ghost small" type="button" data-edit-product="${product.id}">Editar</button><button class="button danger-outline small" type="button" data-remove-product="${product.id}">Quitar</button></div></article>`).join("") : `<div class="empty-state"><p>No encontramos productos.</p></div>`;
+      pagination.innerHTML = products.length > pageSize ? `<button class="button ghost small" type="button" data-admin-product-page="${page - 1}" ${page === 1 ? "disabled" : ""}>‹ Anterior</button><span>Página ${page} de ${totalPages} · ${products.length} variantes</span><button class="button ghost small" type="button" data-admin-product-page="${page + 1}" ${page === totalPages ? "disabled" : ""}>Siguiente ›</button>` : `<span>${products.length} variantes</span>`;
+    };
+    document.getElementById("admin-product-new").addEventListener("click", clearForm);
+    document.getElementById("admin-product-cancel").addEventListener("click", () => { form.hidden = true; message.textContent = ""; });
+    search.addEventListener("input", () => { page = 1; render(); });
+    pagination.addEventListener("click", (event) => { const button = event.target.closest("[data-admin-product-page]"); if (button && !button.disabled) { page = Number(button.dataset.adminProductPage); render(); } });
+    list.addEventListener("click", (event) => {
+      const editButton = event.target.closest("[data-edit-product]");
+      if (editButton) { const product = window.KaizenStore.getCatalogProducts().find((item) => item.id === Number(editButton.dataset.editProduct)); if (product) editProduct(product); return; }
+      const removeButton = event.target.closest("[data-remove-product]");
+      if (!removeButton) return;
+      const product = window.KaizenStore.getCatalogProducts().find((item) => item.id === Number(removeButton.dataset.removeProduct));
+      if (product && window.confirm(`¿Quitar ${product.name} (${product.article}) del catálogo?`)) { window.KaizenStore.removeCatalogProduct(product.id); toast("Producto quitado del catálogo."); render(); }
+    });
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      try {
+        const product = window.KaizenStore.saveCatalogProduct({
+          id: document.getElementById("admin-product-id").value || null,
+          name: document.getElementById("admin-product-name").value,
+          article: document.getElementById("admin-product-article").value,
+          category: categorySelect.value,
+          unit: document.getElementById("admin-product-unit").value,
+          price: document.getElementById("admin-product-price").value,
+          stock: document.getElementById("admin-product-stock").value,
+          condition: document.getElementById("admin-product-condition").value,
+          description: document.getElementById("admin-product-description").value,
+          priceStatus: document.getElementById("admin-product-consult").checked ? "consult" : "available",
+          isPromotion: document.getElementById("admin-product-promotion").checked,
+          promotionMinimumQuantity: document.getElementById("admin-product-promotion-minimum").value
+        });
+        message.textContent = `${product.name} guardado correctamente.`;
+        message.className = "form-message success";
+        document.getElementById("admin-product-count").textContent = window.KaizenStore.getCatalogProducts().length;
+        render();
+      } catch (error) { message.textContent = error.message; message.className = "form-message error"; }
+    });
+    render();
   }
 
   function initSchedule() {

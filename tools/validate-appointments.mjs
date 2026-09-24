@@ -43,6 +43,8 @@ const date = "2026-09-28";
 const initial = window.KaizenStore.createAppointment({ type: "Consulta inicial", modality: "Presencial", date, time: "09:00" });
 assert.equal(initial.durationMinutes, 40);
 assert.equal(initial.modality, "Presencial");
+assert.equal(initial.userPhone, "11 5555 0101");
+assert.equal(initial.userEmail, "cliente@kaizen.demo");
 assert.deepEqual([...window.KaizenStore.getOccupiedSlots(date, "Presencial", "Control nutricional")], ["09:00", "09:20"]);
 
 const control = window.KaizenStore.createAppointment({ type: "Control nutricional", modality: "Virtual", date, time: "15:00" });
