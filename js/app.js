@@ -18,7 +18,7 @@
       <div class="announcement">Compra online o por WhatsApp · Retiro en el local o envío a domicilio</div>
       <header class="site-header">
         <div class="header-inner">
-          <a class="brand" href="index.html" aria-label="Kaizen, ir al inicio"><img src="assets/logo-horizontal.jpeg" alt="Kaizen Dietética & Nutrición"></a>
+          <a class="brand" href="index.html" aria-label="Kaizen, ir al inicio"><img src="assets/logo-horizontal-v2.png" alt="Kaizen Dietética & Nutrición"></a>
           <nav class="main-nav" id="main-nav" aria-label="Navegación principal">
             <a class="${active("home")}" href="index.html">Inicio</a>
             <a class="${active("shop")}" href="tienda.html">Tienda</a>
@@ -37,7 +37,7 @@
     return `
       <footer class="site-footer">
         <div class="container footer-grid">
-          <div><img src="assets/logo-horizontal.jpeg" alt="Kaizen"><p>Dietética de cercanía y consultorio nutricional. Productos elegidos y acompañamiento profesional, paso a paso.</p></div>
+          <div><img src="assets/logo-horizontal-v2.png" alt="Kaizen Dietética & Nutrición"><p>Dietética de cercanía y consultorio nutricional. Productos elegidos y acompañamiento profesional, paso a paso.</p></div>
           <div class="footer-links"><strong>Explorá</strong><a href="tienda.html">Catálogo</a><a href="nutricion.html">Reservar turno</a><a href="cuenta.html">Mi cuenta</a></div>
           <div class="footer-links"><strong>Contacto</strong><a href="mailto:hola@kaizen-demo.com">hola@kaizen-demo.com</a><a href="#">WhatsApp · dato a confirmar</a><span>Dirección · dato a confirmar</span></div>
         </div>
