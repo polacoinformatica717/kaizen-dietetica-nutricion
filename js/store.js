@@ -274,24 +274,38 @@
   const appointmentDurationMinutes = (type) => String(type || "").toLocaleLowerCase("es-AR").includes("control") && !isPromoType(type) ? 20 : 40;
   const normalizeModality = (modality) => String(modality || "").toLocaleLowerCase("es-AR") === "virtual" ? "Virtual" : String(modality || "").toLocaleLowerCase("es-AR") === "presencial" ? "Presencial" : "";
   const scheduleChannel = (schedule, modality) => modality === "Virtual" ? schedule.virtual : schedule.presential;
+  const addDaysToIso = (date, days) => {
+    const next = new Date(`${date}T12:00:00`);
+    next.setDate(next.getDate() + days);
+    return next.toISOString().slice(0, 10);
+  };
   const timeToMinutes = (time) => {
     const [hours, minutes] = String(time || "").split(":").map(Number);
     return hours * 60 + minutes;
   };
   const intervalsOverlap = (startA, durationA, startB, durationB) => startA < startB + durationB && startB < startA + durationA;
+  const appointmentPlan = (type, date, time) => isPromoType(type) ? [
+    { type: PROMO_TYPE, date, time, durationMinutes: 40, seriesPosition: 1 },
+    { type: "Control nutricional · Promoción 1/2", date: addDaysToIso(date, 7), time, durationMinutes: 20, seriesPosition: 2 },
+    { type: "Control nutricional · Promoción 2/2", date: addDaysToIso(date, 14), time, durationMinutes: 20, seriesPosition: 3 }
+  ] : [{ type, date, time, durationMinutes: appointmentDurationMinutes(type), seriesPosition: 1 }];
+  const planItemIsAvailable = (item, channel, appointments) => {
+    const selectedDate = new Date(`${item.date}T12:00:00`);
+    if (!channel.weekdays.includes(selectedDate.getDay()) || !channel.times.includes(item.time)) return false;
+    return !appointments.some((appointment) => appointment.date === item.date && appointment.status !== "Cancelado" && intervalsOverlap(timeToMinutes(item.time), item.durationMinutes, timeToMinutes(appointment.time), Number(appointment.durationMinutes) || appointmentDurationMinutes(appointment.type)));
+  };
 
   function getOccupiedSlots(date, modality = "Presencial", type = "Control nutricional") {
     const normalizedModality = normalizeModality(modality) || "Presencial";
-    const duration = appointmentDurationMinutes(type);
-    const candidates = scheduleChannel(getSchedule(), normalizedModality).times;
-    const appointments = read(KEYS.appointments, []).filter((item) => item.date === date && item.status !== "Cancelado");
-    return candidates.filter((time) => appointments.some((item) => intervalsOverlap(timeToMinutes(time), duration, timeToMinutes(item.time), Number(item.durationMinutes) || appointmentDurationMinutes(item.type))));
+    const channel = scheduleChannel(getSchedule(), normalizedModality);
+    const appointments = read(KEYS.appointments, []);
+    return channel.times.filter((time) => appointmentPlan(type, date, time).some((item) => !planItemIsAvailable(item, channel, appointments)));
   }
 
   function hasUsedPromo() {
     const user = getSession();
     if (!user || user.role !== "customer") return false;
-    return read(KEYS.appointments, []).some((item) => item.userId === user.id && isPromoType(item.type));
+    return read(KEYS.appointments, []).some((item) => item.userId === user.id && (isPromoType(item.type) || String(item.seriesId || "").startsWith("PROMO-")));
   }
 
   function createAppointment({ type, modality, date, time, notes = "" }) {
@@ -304,31 +318,35 @@
     if (isPromoType(normalizedType) && hasUsedPromo()) throw new Error("La promoción Consulta inicial + 2 Controles es de un único uso por cliente.");
     const schedule = getSchedule();
     const channel = scheduleChannel(schedule, normalizedModality);
-    const selectedDate = new Date(`${date}T12:00:00`);
-    if (!channel.weekdays.includes(selectedDate.getDay()) || !channel.times.includes(time)) throw new Error("Ese horario no está disponible para la modalidad elegida.");
-    const durationMinutes = appointmentDurationMinutes(normalizedType);
-    const appointment = {
-      id: `T-${String(Date.now()).slice(-7)}`,
+    const appointments = read(KEYS.appointments, []);
+    const plan = appointmentPlan(normalizedType, date, time);
+    const unavailable = plan.find((item) => !planItemIsAvailable(item, channel, appointments));
+    if (unavailable) {
+      const suffix = isPromoType(normalizedType) && unavailable.date !== date ? ` El control del ${unavailable.date} a las ${time} no está disponible.` : "";
+      throw new Error(`Ese horario no está disponible o acaba de ocuparse.${suffix}`);
+    }
+    const timestamp = Date.now();
+    const createdAt = new Date(timestamp).toISOString();
+    const seriesId = isPromoType(normalizedType) ? `PROMO-${user.id}-${timestamp}` : null;
+    const booked = plan.map((item, index) => ({
+      id: `T-${String(timestamp).slice(-7)}${plan.length > 1 ? `-${index + 1}` : ""}`,
       userId: user.id,
       userName: user.name,
       userEmail: user.email,
       userPhone: user.phone,
       userLocality: user.locality,
-      createdAt: new Date().toISOString(),
-      type: normalizedType,
+      createdAt,
+      type: item.type,
       modality: normalizedModality,
-      durationMinutes,
-      date,
-      time,
+      durationMinutes: item.durationMinutes,
+      date: item.date,
+      time: item.time,
       notes: String(notes).trim(),
-      status: schedule.mode === "auto" ? "Confirmado" : "Pendiente"
-    };
-    const appointments = read(KEYS.appointments, []);
-    const occupied = appointments.some((item) => item.date === date && item.status !== "Cancelado" && intervalsOverlap(timeToMinutes(time), durationMinutes, timeToMinutes(item.time), Number(item.durationMinutes) || appointmentDurationMinutes(item.type)));
-    if (occupied) throw new Error("Ese horario acaba de ocuparse. Elegí otro disponible.");
-    appointments.unshift(appointment);
-    write(KEYS.appointments, appointments);
-    return appointment;
+      status: schedule.mode === "auto" ? "Confirmado" : "Pendiente",
+      ...(seriesId ? { seriesId, seriesPosition: item.seriesPosition, seriesSize: plan.length, promotionName: PROMO_TYPE } : {})
+    }));
+    write(KEYS.appointments, [...booked, ...appointments]);
+    return { ...booked[0], bundleAppointments: booked };
   }
   function getAppointments(all = false) {
     const session = getSession();

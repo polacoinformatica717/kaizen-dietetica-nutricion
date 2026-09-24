@@ -9,6 +9,15 @@
     return direction * (Number(left.price) - Number(right.price));
   };
   const escapeHtml = (value) => String(value ?? "").replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char]));
+  const CONTACT = Object.freeze({
+    phoneDisplay: "3644-594151",
+    whatsapp: "5493644594151",
+    email: "kaizen.diet2020@gmail.com",
+    instagram: "https://www.instagram.com/kaizen.diet/",
+    facebook: "https://www.facebook.com/search/top?q=Kaizen%20Diet%C3%A9tica",
+    maps: "https://www.google.com/maps/search/?api=1&query=Salta%20485%2C%20Juan%20Jos%C3%A9%20Castelli%2C%20Chaco%2C%203705%2C%20Argentina"
+  });
+  const whatsappUrl = (message = "") => `https://wa.me/${CONTACT.whatsapp}${message ? `?text=${encodeURIComponent(message)}` : ""}`;
   const currentPage = () => document.body.dataset.page || "home";
   const localDate = (iso) => new Date(`${iso}T12:00:00`);
   const formatAddress = (address) => {
@@ -23,7 +32,7 @@
     const isAdmin = session?.role === "admin";
     const active = (name) => page === name ? "active" : "";
     return `
-      <div class="announcement">Compra online o por WhatsApp · Retiro en el local o envío a domicilio</div>
+      <div class="announcement">Compra online o por <a href="${whatsappUrl("Hola Kaizen, quisiera hacer una consulta.")}" target="_blank" rel="noopener noreferrer">WhatsApp al ${CONTACT.phoneDisplay}</a> · Retiro en el local o envío a domicilio</div>
       <header class="site-header">
         <div class="header-inner">
           <a class="brand" href="index.html" aria-label="Kaizen, ir al inicio"><img src="assets/logo-horizontal-v2.png" alt="Kaizen Dietética & Nutrición"></a>
@@ -47,9 +56,10 @@
         <div class="container footer-grid">
           <div><img src="assets/logo-horizontal-v2.png" alt="Kaizen Dietética & Nutrición"><p>Dietética de cercanía y consultorio nutricional. Productos elegidos y acompañamiento profesional, paso a paso.</p></div>
           <div class="footer-links"><strong>Explorá</strong><a href="tienda.html">Catálogo</a><a href="nutricion.html">Reservar turno</a><a href="cuenta.html">Mi cuenta</a></div>
-          <div class="footer-links"><strong>Contacto</strong><a href="mailto:hola@kaizen-demo.com">hola@kaizen-demo.com</a><a href="#">WhatsApp · dato a confirmar</a><span>Dirección · dato a confirmar</span></div>
+          <div class="footer-links"><strong>Contacto</strong><a href="${whatsappUrl("Hola Kaizen, quisiera hacer una consulta.")}" target="_blank" rel="noopener noreferrer">WhatsApp · ${CONTACT.phoneDisplay}</a><a href="mailto:${CONTACT.email}">${CONTACT.email}</a><a href="${CONTACT.maps}" target="_blank" rel="noopener noreferrer">Salta 485 · Juan José Castelli</a><span>Chaco · CP 3705</span></div>
+          <div class="footer-links"><strong>Redes</strong><a href="${CONTACT.instagram}" target="_blank" rel="noopener noreferrer">Instagram · @kaizen.diet</a><a href="${CONTACT.facebook}" target="_blank" rel="noopener noreferrer">Facebook · Kaizen Dietética</a></div>
         </div>
-        <div class="container footer-bottom"><span>© ${new Date().getFullYear()} Kaizen Dietética & Nutrición</span><span>Versión funcional de demostración · datos comerciales a confirmar</span></div>
+        <div class="container footer-bottom"><span>© ${new Date().getFullYear()} Kaizen Dietética & Nutrición</span><span>Salta 485 · Juan José Castelli, Chaco</span></div>
       </footer>`;
   }
 
@@ -99,8 +109,7 @@
       if (consultButton) {
         const product = window.KAIZEN_PRODUCTS.find((item) => item.id === Number(consultButton.dataset.consultProduct));
         if (product) {
-          const text = encodeURIComponent(`Hola Kaizen, quisiera consultar el precio de ${product.name} (${product.article}, ${product.unit}).`);
-          window.open(`https://wa.me/?text=${text}`, "_blank", "noopener,noreferrer");
+          window.open(whatsappUrl(`Hola Kaizen, quisiera consultar el precio de ${product.name} (${product.article}, ${product.unit}).`), "_blank", "noopener,noreferrer");
         }
       }
       const addButton = event.target.closest("[data-add-product]");
@@ -165,7 +174,14 @@
   }
 
   const appointmentDurationMinutes = (type) => String(type || "").toLocaleLowerCase("es-AR").includes("control") && type !== "Consulta inicial + 2 Controles" ? 20 : 40;
+  const isAppointmentPromo = (type) => type === "Consulta inicial + 2 Controles";
   const scheduleKeyForModality = (modality) => modality === "Virtual" ? "virtual" : "presential";
+  const addDaysIso = (date, days) => {
+    const next = localDate(date);
+    next.setDate(next.getDate() + days);
+    return next.toISOString().slice(0, 10);
+  };
+  const promoDates = (date) => [date, addDaysIso(date, 7), addDaysIso(date, 14)];
 
   function upcomingDates(modality) {
     const schedule = window.KaizenStore.getSchedule();
@@ -219,10 +235,15 @@
       const times = schedule[scheduleKeyForModality(selection.modality)].times;
       slotRow.innerHTML = times.map((time) => occupied.has(time)
         ? `<button type="button" class="slot-button occupied" disabled aria-label="${time}, ocupado"><strong>${time}</strong><span>Ocupado</span></button>`
-        : `<button type="button" class="slot-button" data-time="${time}"><strong>${time}</strong><span>${duration} min</span></button>`).join("");
+        : `<button type="button" class="slot-button" data-time="${time}"><strong>${time}</strong><span>${isAppointmentPromo(selection.type) ? "3 turnos" : `${duration} min`}</span></button>`).join("");
     };
     const updateSummary = () => {
       const duration = selection.type ? `${appointmentDurationMinutes(selection.type)} min` : "Duración pendiente";
+      if (isAppointmentPromo(selection.type) && selection.date) {
+        const dates = promoDates(selection.date);
+        summary.innerHTML = `<strong>Promoción de 3 turnos</strong><span>${escapeHtml(selection.modality || "Modalidad pendiente")} · ${escapeHtml(selection.time || "Horario pendiente")}</span><ul class="booking-bundle-list"><li>Consulta inicial · ${localDate(dates[0]).toLocaleDateString("es-AR")} · 40 min</li><li>Control 1 · ${localDate(dates[1]).toLocaleDateString("es-AR")} · 20 min</li><li>Control 2 · ${localDate(dates[2]).toLocaleDateString("es-AR")} · 20 min</li></ul>`;
+        return;
+      }
       summary.textContent = selection.type || selection.modality || selection.date || selection.time ? `${selection.type || "Tipo pendiente"} · ${duration} · ${selection.modality || "Modalidad pendiente"} · ${selection.date ? localDate(selection.date).toLocaleDateString("es-AR") : "Fecha pendiente"} · ${selection.time || "Horario pendiente"}` : "Tu selección aparecerá acá.";
     };
     form.addEventListener("click", (event) => {
@@ -241,7 +262,11 @@
       if (!window.KaizenStore.getSession()) { window.location.href = "acceso.html?return=nutricion.html"; return; }
       try {
         const appointment = window.KaizenStore.createAppointment({ ...selection, notes: document.getElementById("appointment-notes").value });
-        form.innerHTML = `<div class="empty-state"><span class="status ${appointment.status === "Confirmado" ? "confirmed" : "pending"}">${appointment.status}</span><h2>Tu turno quedó ${appointment.status.toLowerCase()}</h2><p>${appointment.modality} · ${appointment.durationMinutes} min · ${localDate(appointment.date).toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })} a las ${appointment.time}</p><a class="button" href="cuenta.html">Ver mi turno</a></div>`;
+        const bundle = appointment.bundleAppointments || [appointment];
+        const detail = bundle.length > 1
+          ? `<p>Quedaron reservados la consulta inicial y los dos controles semanales, siempre a las ${escapeHtml(appointment.time)}.</p><ul class="booking-bundle-list confirmed-list">${bundle.map((item) => `<li><strong>${escapeHtml(item.type)}</strong><span>${localDate(item.date).toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })} · ${item.durationMinutes} min · ${escapeHtml(item.modality)}</span></li>`).join("")}</ul>`
+          : `<p>${escapeHtml(appointment.modality)} · ${appointment.durationMinutes} min · ${localDate(appointment.date).toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })} a las ${escapeHtml(appointment.time)}</p>`;
+        form.innerHTML = `<div class="empty-state"><span class="status ${appointment.status === "Confirmado" ? "confirmed" : "pending"}">${appointment.status}</span><h2>${bundle.length > 1 ? "Tus 3 turnos quedaron reservados" : `Tu turno quedó ${appointment.status.toLowerCase()}`}</h2>${detail}<a class="button" href="cuenta.html">Ver mis turnos</a></div>`;
       } catch (error) { result.textContent = error.message; result.className = "form-message error"; }
     });
   }
@@ -335,8 +360,7 @@
         };
         const order = window.KaizenStore.placeOrder({ payment: selection.payment, delivery: selection.delivery, address, notes: document.getElementById("checkout-notes").value });
         if (order.paymentKey === "whatsapp") {
-          const text = encodeURIComponent(`Hola Kaizen, quiero coordinar el pedido ${order.id} por ${money(order.total)} (${order.delivery}).`);
-          window.open(`https://wa.me/?text=${text}`, "_blank", "noopener,noreferrer");
+          window.open(whatsappUrl(`Hola Kaizen, quiero coordinar el pedido ${order.id} por ${money(order.total)} (${order.delivery}).`), "_blank", "noopener,noreferrer");
         }
         document.getElementById("cart-page-root").innerHTML = `<div class="empty-state order-success"><span class="status ${order.status === "Confirmado" ? "confirmed" : "pending"}">${escapeHtml(order.status)}</span><h2>Pedido ${escapeHtml(order.id)} registrado</h2><p>${escapeHtml(order.payment)} · ${escapeHtml(order.delivery)}</p><p class="price">${money(order.total)}</p><a class="button" href="cuenta.html">Ver mis pedidos</a></div>`;
         updateCartBadge();

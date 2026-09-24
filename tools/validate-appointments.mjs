@@ -51,4 +51,25 @@ assert.equal(control.modality, "Virtual");
 assert.throws(() => window.KaizenStore.createAppointment({ type: "Control nutricional", modality: "Presencial", date, time: "15:00" }), /ocuparse/);
 assert.throws(() => window.KaizenStore.createAppointment({ type: "Control nutricional", modality: "Virtual", date, time: "09:20" }), /no está disponible/);
 
-console.log("Agenda presencial y virtual validada correctamente.");
+const followupConflict = window.KaizenStore.createAppointment({ type: "Control nutricional", modality: "Presencial", date: "2026-10-05", time: "10:00" });
+const countBeforeFailedPromotion = window.KaizenStore.getAppointments().length;
+assert.throws(() => window.KaizenStore.createAppointment({ type: "Consulta inicial + 2 Controles", modality: "Presencial", date, time: "10:00" }), /control del 2026-10-05/);
+assert.equal(window.KaizenStore.getAppointments().length, countBeforeFailedPromotion, "Una promoción sin disponibilidad completa no debe crear turnos parciales");
+assert.equal(window.KaizenStore.hasUsedPromo(), false);
+window.KaizenStore.logout();
+await window.KaizenStore.login("admin@kaizen.demo", "Admin1234");
+window.KaizenStore.updateAppointmentStatus(followupConflict.id, "Cancelado");
+window.KaizenStore.logout();
+await window.KaizenStore.login("cliente@kaizen.demo", "Demo1234");
+
+const promotion = window.KaizenStore.createAppointment({ type: "Consulta inicial + 2 Controles", modality: "Presencial", date, time: "10:00" });
+assert.equal(promotion.bundleAppointments.length, 3);
+assert.deepEqual([...promotion.bundleAppointments.map((item) => item.date)], ["2026-09-28", "2026-10-05", "2026-10-12"]);
+assert.deepEqual([...promotion.bundleAppointments.map((item) => item.durationMinutes)], [40, 20, 20]);
+assert.equal(new Set(promotion.bundleAppointments.map((item) => item.seriesId)).size, 1);
+assert.equal(window.KaizenStore.hasUsedPromo(), true);
+assert.throws(() => window.KaizenStore.createAppointment({ type: "Consulta inicial + 2 Controles", modality: "Virtual", date, time: "16:00" }), /único uso/);
+assert.throws(() => window.KaizenStore.createAppointment({ type: "Control nutricional", modality: "Virtual", date: "2026-10-05", time: "10:00" }), /no está disponible/);
+assert.ok(window.KaizenStore.getOccupiedSlots(date, "Presencial", "Consulta inicial + 2 Controles").includes("10:00"));
+
+console.log("Agenda presencial, virtual y promoción de tres turnos validadas correctamente.");

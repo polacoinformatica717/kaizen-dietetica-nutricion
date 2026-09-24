@@ -53,6 +53,7 @@ button { cursor: pointer; }
   font-size: 0.82rem;
   text-align: center;
 }
+.announcement a { color: var(--lime); font-weight: 800; text-underline-offset: 3px; }
 
 .site-header {
   position: sticky;
@@ -379,7 +380,14 @@ input:focus, select:focus, textarea:focus { border-color: var(--green); box-shad
 .date-button span { color: var(--muted); font-size: .76rem; text-transform: uppercase; }
 .date-button b { font-size: 1.05rem; }
 .date-button.selected, .slot-button.selected { color: white; border-color: var(--pine); background: var(--pine); }
-.booking-summary { padding: 17px; border-radius: 14px; background: var(--mist); font-size: .9rem; }
+.booking-summary { display: grid; gap: 6px; padding: 17px; border-radius: 14px; background: var(--mist); font-size: .9rem; }
+.booking-bundle-list { display: grid; gap: 5px; margin: 5px 0 0; padding-left: 20px; }
+.booking-bundle-list.confirmed-list { max-width: 680px; margin: 20px auto 26px; padding: 0; list-style: none; text-align: left; }
+.booking-bundle-list.confirmed-list li { display: grid; gap: 2px; padding: 13px 15px; border: 1px solid var(--line); border-radius: 12px; background: white; }
+.booking-bundle-list.confirmed-list span { color: var(--muted); font-size: .86rem; text-transform: capitalize; }
+.appointment-policy { margin-top: 16px; padding: 20px; border: 1px solid #e5c9a9; border-radius: 15px; background: #fff6e8; }
+.appointment-policy p { margin-bottom: 10px; font-size: .9rem; }
+.appointment-policy p:last-child { margin-bottom: 0; }
 
 .auth-layout { min-height: calc(100vh - 111px); display: grid; grid-template-columns: .85fr 1.15fr; }
 .auth-aside { padding: clamp(45px, 7vw, 95px); color: white; background: var(--pine); }
@@ -511,8 +519,16 @@ dialog::backdrop { background: rgba(10, 30, 22, .6); backdrop-filter: blur(3px);
 }
 @keyframes slide-up { from { opacity: 0; transform: translateY(12px); } }
 
+.contact-section { background: var(--paper); }
+.contact-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; }
+.contact-card { min-width: 0; display: grid; gap: 5px; padding: 22px; border: 1px solid var(--line); border-radius: 17px; background: var(--cream); text-decoration: none; transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease; }
+.contact-card:hover { transform: translateY(-3px); border-color: var(--green); box-shadow: 0 12px 32px rgba(21, 61, 47, .1); }
+.contact-card span { color: var(--green); font-size: .76rem; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
+.contact-card strong { overflow-wrap: anywhere; font-size: 1.02rem; }
+.contact-card small { color: var(--muted); }
+
 .site-footer { margin-top: 30px; color: white; background: var(--pine); }
-.footer-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 35px; padding-block: 55px 34px; }
+.footer-grid { display: grid; grid-template-columns: 1.35fr .8fr 1.15fr .85fr; gap: 35px; padding-block: 55px 34px; }
 .footer-grid img { width: 185px; margin-bottom: 17px; filter: brightness(0) invert(1); }
 .footer-grid p { max-width: 400px; color: #c5d9ce; }
 .footer-links { display: grid; align-content: start; gap: 9px; }

@@ -26,10 +26,11 @@
           <p class="lead">Reservá con tu cuenta y consultá el estado del turno desde “Mi cuenta”.</p>
           <ul class="check-list"><li>Consulta inicial de hasta 40 minutos</li><li>Controles de 20 minutos</li><li>Atención presencial o virtual</li><li>Recordatorio dentro de tu cuenta</li></ul>
           <div class="booking-summary"><strong>Política actual:</strong> <span id="booking-mode">Cargando…</span></div>
+          <div class="appointment-policy"><p class="eyebrow">Reprogramaciones y cancelaciones</p><p>Para reprogramar un turno debés avisar con al menos <strong>24 horas de anticipación</strong>. Si avisás fuera de ese plazo, se pierde el pago realizado.</p><p>Si cancelás el turno sin reprogramarlo, se retiene el <strong>50% de lo abonado</strong>.</p></div>
         </div>
 
         <form class="form-card booking-steps" id="booking-form">
-          <div class="booking-step"><h3>1. Tipo de consulta</h3><div class="choice-grid choice-grid-three"><button type="button" class="choice-card" data-booking-choice="Consulta inicial"><strong>Consulta inicial</strong><small>Hasta 40 minutos · evaluación y objetivos</small></button><button type="button" class="choice-card" data-booking-choice="Control nutricional"><strong>Control nutricional</strong><small>20 minutos · seguimiento</small></button><button type="button" class="choice-card promo-choice" data-booking-choice="Consulta inicial + 2 Controles"><span class="tag">Promoción</span><strong>Consulta inicial + 2 Controles</strong><small>Inicial de hasta 40 min + dos controles de 20 min · único uso por cliente</small></button></div></div>
+          <div class="booking-step"><h3>1. Tipo de consulta</h3><div class="choice-grid choice-grid-three"><button type="button" class="choice-card" data-booking-choice="Consulta inicial"><strong>Consulta inicial</strong><small>Hasta 40 minutos · evaluación y objetivos</small></button><button type="button" class="choice-card" data-booking-choice="Control nutricional"><strong>Control nutricional</strong><small>20 minutos · seguimiento</small></button><button type="button" class="choice-card promo-choice" data-booking-choice="Consulta inicial + 2 Controles"><span class="tag">Promoción</span><strong>Consulta inicial + 2 Controles</strong><small>Reservás la consulta inicial y los controles de las dos semanas siguientes, el mismo día y horario · único uso por cliente</small></button></div></div>
           <div class="booking-step"><h3>2. Modalidad</h3><div class="choice-grid"><button type="button" class="choice-card" data-booking-modality="Presencial"><strong>Presencial</strong><small>Atención en el consultorio Kaizen</small></button><button type="button" class="choice-card" data-booking-modality="Virtual"><strong>Virtual</strong><small>Consulta online desde donde estés</small></button></div></div>
           <div class="booking-step"><h3>3. Fecha</h3><div class="date-row" id="date-row"></div></div>
           <div class="booking-step"><h3>4. Horario</h3><div class="slot-row" id="slot-row"></div></div>
@@ -37,7 +38,7 @@
           <div class="booking-summary" id="booking-summary">Tu selección aparecerá acá.</div>
           <p class="form-message" id="booking-result" role="status"></p>
           <button class="button" type="submit">Reservar turno</button>
-          <p class="fine-print">Para confirmar la reserva te pediremos iniciar sesión o crear una cuenta.</p>
+          <p class="fine-print">Para confirmar la reserva te pediremos iniciar sesión o crear una cuenta. Al reservar aceptás la política de reprogramación y cancelación informada en esta página.</p>
         </form>
       </div>
     </section>

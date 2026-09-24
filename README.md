@@ -17,4 +17,14 @@ Abrir `http://localhost:4173`.
 - Cliente: `cliente@kaizen.demo` / `Demo1234`
 - Administración: `admin@kaizen.demo` / `Admin1234`
 
-La versión actual usa `localStorage` para demostrar registro, sesión, carrito, pedidos, turnos y configuración de agenda. Antes de producción se debe reemplazar por autenticación y persistencia de servidor, conectar Mercado Pago y cargar el teléfono real de WhatsApp.
+La versión actual usa `localStorage` para demostrar registro, sesión, carrito, pedidos, turnos y configuración de agenda. Antes de producción se debe reemplazar por autenticación y persistencia de servidor y conectar Mercado Pago.
+
+## Contacto configurado
+
+- Salta 485, Juan José Castelli, Chaco (CP 3705)
+- WhatsApp: 3644-594151
+- Correo: kaizen.diet2020@gmail.com
+- Instagram: @kaizen.diet
+- Facebook: Kaizen Dietética
+
+Los enlaces del sitio abren directamente WhatsApp, correo electrónico, redes sociales y Google Maps.
