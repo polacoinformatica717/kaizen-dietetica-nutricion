@@ -164,7 +164,8 @@ h3 { line-height: 1.2; }
 .hero-copy h1 em { color: var(--green); font-style: italic; }
 .hero-copy .lead { color: #39584b; }
 .hero-media { position: relative; min-height: 420px; overflow: hidden; }
-.hero-media > img { width: 100%; height: 100%; object-fit: cover; }
+.hero-media::before { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(90deg, var(--mist) 0%, rgba(231, 239, 232, .42) 8%, transparent 24%); }
+.hero-media > img { width: 100%; height: 100%; display: block; object-fit: cover; object-position: 72% center; filter: saturate(.94) contrast(.98); }
 .hero-note {
   position: absolute;
   right: 28px;
@@ -175,6 +176,7 @@ h3 { line-height: 1.2; }
   color: white;
   background: rgba(21, 61, 47, .92);
   box-shadow: var(--shadow);
+  z-index: 2;
 }
 .hero-note strong { display: block; font-family: Georgia, serif; font-size: 1.25rem; }
 
@@ -217,6 +219,8 @@ h3 { line-height: 1.2; }
   box-shadow: 0 10px 24px rgba(21, 61, 47, .2);
   font-size: 1.9rem;
   font-weight: 850;
+  align-self: center;
+  justify-self: center;
 }
 .carousel-arrow:hover { transform: translateY(-2px); background: var(--green); }
 .product-carousel {
@@ -228,7 +232,7 @@ h3 { line-height: 1.2; }
   overscroll-behavior-inline: contain;
   scroll-snap-type: inline mandatory;
   scrollbar-width: none;
-  padding: 2px 2px 18px;
+  padding: 2px;
 }
 .product-carousel::-webkit-scrollbar { display: none; }
 .product-carousel .product-card { scroll-snap-align: start; }
@@ -305,12 +309,11 @@ h3 { line-height: 1.2; }
   font-size: .9rem;
 }
 .chip:hover, .chip.active { background: var(--mist); color: var(--green); font-weight: 800; }
-.catalog-toolbar { display: grid; grid-template-columns: 1fr auto; gap: 12px; margin-bottom: 18px; }
+.catalog-toolbar { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(180px, auto) minmax(145px, auto); gap: 12px; margin-bottom: 18px; }
 .search-wrap { position: relative; }
 .search-wrap input { padding-left: 45px; }
 .search-wrap::before { content: "⌕"; position: absolute; left: 17px; top: 9px; color: var(--green); font-size: 1.35rem; }
 .catalog-status { display: flex; justify-content: space-between; gap: 16px; margin: 8px 0 22px; color: var(--muted); font-size: .9rem; }
-.catalog-more { display: flex; justify-content: center; padding-top: 28px; }
 .empty-state { grid-column: 1 / -1; padding: 60px 24px; border: 1px dashed var(--line); border-radius: var(--radius); text-align: center; }
 
 label { display: grid; gap: 7px; color: var(--ink); font-size: .88rem; font-weight: 750; }
@@ -418,6 +421,10 @@ input:focus, select:focus, textarea:focus { border-color: var(--green); box-shad
 .time-check span { display: grid; place-items: center; min-height: 44px; border: 1px solid var(--line); border-radius: 10px; background: white; font-weight: 800; }
 .time-check input:checked + span { color: white; border-color: var(--pine); background: var(--pine); }
 .time-check input:focus-visible + span { box-shadow: 0 0 0 3px rgba(47,113,84,.18); }
+.schedule-channel { display: grid; gap: 18px; padding: 22px; border: 1px solid var(--line); border-radius: 16px; background: var(--cream); }
+.schedule-channel.virtual { background: var(--mist); }
+.schedule-channel h3 { margin: 2px 0 4px; font-family: inherit; font-size: 1.15rem; }
+.schedule-label { margin-bottom: 9px; font-weight: 850; }
 
 .cart-page-layout { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(340px, .75fr); gap: 40px; align-items: start; }
 .cart-page-lines { display: grid; gap: 12px; margin-bottom: 24px; }

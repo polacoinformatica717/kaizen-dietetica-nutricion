@@ -9,12 +9,31 @@
     addresses: "kaizen_addresses_v1"
   };
 
+  const DEFAULT_SCHEDULE = {
+    mode: "auto",
+    presential: { weekdays: [1, 2, 3, 4, 5], times: ["09:00", "10:30", "15:00", "16:30", "18:00"] },
+    virtual: { weekdays: [1, 2, 3, 4, 5], times: ["09:00", "10:30", "15:00", "16:30", "18:00"] }
+  };
+
   const read = (key, fallback) => {
     try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
     catch { return fallback; }
   };
   const write = (key, value) => localStorage.setItem(key, JSON.stringify(value));
   const normalizeEmail = (email) => String(email || "").trim().toLowerCase();
+  const normalizeScheduleChannel = (channel, fallback) => {
+    const weekdays = Array.isArray(channel?.weekdays) ? [...new Set(channel.weekdays.map(Number).filter((day) => day >= 0 && day <= 6))] : fallback.weekdays;
+    const times = Array.isArray(channel?.times) ? [...new Set(channel.times.filter((time) => /^\d{2}:\d{2}$/.test(time)))].sort() : fallback.times;
+    return { weekdays: weekdays.length ? weekdays : fallback.weekdays, times: times.length ? times : fallback.times };
+  };
+  const normalizeSchedule = (schedule = {}) => {
+    const legacyChannel = Array.isArray(schedule.weekdays) && Array.isArray(schedule.times) ? { weekdays: schedule.weekdays, times: schedule.times } : null;
+    return {
+      mode: schedule.mode === "pending" ? "pending" : "auto",
+      presential: normalizeScheduleChannel(schedule.presential || legacyChannel, DEFAULT_SCHEDULE.presential),
+      virtual: normalizeScheduleChannel(schedule.virtual, DEFAULT_SCHEDULE.virtual)
+    };
+  };
 
   async function hashPassword(password) {
     if (window.crypto?.subtle) {
@@ -54,9 +73,7 @@
       const current = users.find((user) => user.id === session.id);
       if (current) write(KEYS.session, publicUser(current));
     }
-    if (!localStorage.getItem(KEYS.schedule)) {
-      write(KEYS.schedule, { mode: "auto", weekdays: [1, 2, 3, 4, 5], times: ["09:00", "10:30", "15:00", "16:30", "18:00"] });
-    }
+    write(KEYS.schedule, normalizeSchedule(read(KEYS.schedule, DEFAULT_SCHEDULE)));
   }
 
   async function register({ name, email, password, birthDate, phone, locality }) {
@@ -243,22 +260,32 @@
     return session?.role === "customer" ? orders.filter((order) => order.userId === session.id) : [];
   }
 
-  function getSchedule() { return read(KEYS.schedule, { mode: "auto", weekdays: [1,2,3,4,5], times: ["09:00"] }); }
+  function getSchedule() { return normalizeSchedule(read(KEYS.schedule, DEFAULT_SCHEDULE)); }
   function saveSchedule(schedule) {
     const session = getSession();
     if (session?.role !== "admin") throw new Error("Solo el equipo de Kaizen puede modificar la agenda.");
-    write(KEYS.schedule, schedule);
-    return schedule;
+    const normalized = normalizeSchedule(schedule);
+    write(KEYS.schedule, normalized);
+    return normalized;
   }
 
   const PROMO_TYPE = "Consulta inicial + 2 Controles";
   const isPromoType = (type) => String(type || "").trim().toLocaleLowerCase("es-AR") === PROMO_TYPE.toLocaleLowerCase("es-AR");
+  const appointmentDurationMinutes = (type) => String(type || "").toLocaleLowerCase("es-AR").includes("control") && !isPromoType(type) ? 20 : 40;
+  const normalizeModality = (modality) => String(modality || "").toLocaleLowerCase("es-AR") === "virtual" ? "Virtual" : String(modality || "").toLocaleLowerCase("es-AR") === "presencial" ? "Presencial" : "";
+  const scheduleChannel = (schedule, modality) => modality === "Virtual" ? schedule.virtual : schedule.presential;
+  const timeToMinutes = (time) => {
+    const [hours, minutes] = String(time || "").split(":").map(Number);
+    return hours * 60 + minutes;
+  };
+  const intervalsOverlap = (startA, durationA, startB, durationB) => startA < startB + durationB && startB < startA + durationA;
 
-  function getOccupiedSlots(date) {
-    if (!date) return [];
-    return read(KEYS.appointments, [])
-      .filter((item) => item.date === date && item.status !== "Cancelado")
-      .map((item) => item.time);
+  function getOccupiedSlots(date, modality = "Presencial", type = "Control nutricional") {
+    const normalizedModality = normalizeModality(modality) || "Presencial";
+    const duration = appointmentDurationMinutes(type);
+    const candidates = scheduleChannel(getSchedule(), normalizedModality).times;
+    const appointments = read(KEYS.appointments, []).filter((item) => item.date === date && item.status !== "Cancelado");
+    return candidates.filter((time) => appointments.some((item) => intervalsOverlap(timeToMinutes(time), duration, timeToMinutes(item.time), Number(item.durationMinutes) || appointmentDurationMinutes(item.type))));
   }
 
   function hasUsedPromo() {
@@ -267,13 +294,19 @@
     return read(KEYS.appointments, []).some((item) => item.userId === user.id && isPromoType(item.type));
   }
 
-  function createAppointment({ type, date, time, notes = "" }) {
+  function createAppointment({ type, modality, date, time, notes = "" }) {
     const user = requireCustomer("reservar turnos");
     if (!user) throw new Error("Necesitás iniciar sesión para reservar un turno.");
-    if (!type || !date || !time) throw new Error("Completá el tipo de consulta, fecha y horario.");
+    if (!type || !modality || !date || !time) throw new Error("Completá el tipo de consulta, modalidad, fecha y horario.");
     const normalizedType = isPromoType(type) ? PROMO_TYPE : type;
+    const normalizedModality = normalizeModality(modality);
+    if (!normalizedModality) throw new Error("Elegí una modalidad válida.");
     if (isPromoType(normalizedType) && hasUsedPromo()) throw new Error("La promoción Consulta inicial + 2 Controles es de un único uso por cliente.");
     const schedule = getSchedule();
+    const channel = scheduleChannel(schedule, normalizedModality);
+    const selectedDate = new Date(`${date}T12:00:00`);
+    if (!channel.weekdays.includes(selectedDate.getDay()) || !channel.times.includes(time)) throw new Error("Ese horario no está disponible para la modalidad elegida.");
+    const durationMinutes = appointmentDurationMinutes(normalizedType);
     const appointment = {
       id: `T-${String(Date.now()).slice(-7)}`,
       userId: user.id,
@@ -283,14 +316,15 @@
       userLocality: user.locality,
       createdAt: new Date().toISOString(),
       type: normalizedType,
-      modality: "Presencial",
+      modality: normalizedModality,
+      durationMinutes,
       date,
       time,
       notes: String(notes).trim(),
       status: schedule.mode === "auto" ? "Confirmado" : "Pendiente"
     };
     const appointments = read(KEYS.appointments, []);
-    const occupied = appointments.some((item) => item.date === date && item.time === time && item.status !== "Cancelado");
+    const occupied = appointments.some((item) => item.date === date && item.status !== "Cancelado" && intervalsOverlap(timeToMinutes(time), durationMinutes, timeToMinutes(item.time), Number(item.durationMinutes) || appointmentDurationMinutes(item.type)));
     if (occupied) throw new Error("Ese horario acaba de ocuparse. Elegí otro disponible.");
     appointments.unshift(appointment);
     write(KEYS.appointments, appointments);

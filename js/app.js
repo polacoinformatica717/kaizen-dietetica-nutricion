@@ -142,40 +142,41 @@
     if (!grid) return;
     const search = document.getElementById("catalog-search");
     const sort = document.getElementById("catalog-sort");
+    const quantity = document.getElementById("catalog-quantity");
     const chips = document.getElementById("category-chips");
     const status = document.getElementById("catalog-count");
-    const more = document.getElementById("catalog-more");
-    const pageSize = 36;
-    let visibleCount = pageSize;
     let category = new URLSearchParams(location.search).get("categoria") || "Todos";
-    function render({ reset = true } = {}) {
-      if (reset) visibleCount = pageSize;
+    function render() {
       const query = search.value.trim().toLowerCase();
       let products = window.KAIZEN_PRODUCTS.filter((product) => (category === "Todos" || product.category === category) && (!query || `${product.name} ${product.article} ${product.description} ${product.condition}`.toLowerCase().includes(query)));
       if (sort.value === "asc") products.sort((a, b) => compareProductPrices(a, b, 1));
       if (sort.value === "desc") products.sort((a, b) => compareProductPrices(a, b, -1));
-      const visibleProducts = products.slice(0, visibleCount);
+      const selectedLimit = quantity.value === "all" ? products.length : Number(quantity.value);
+      const visibleProducts = products.slice(0, selectedLimit);
       grid.innerHTML = visibleProducts.length ? visibleProducts.map(productCard).join("") : `<div class="empty-state"><h3>No encontramos coincidencias</h3><p class="muted">Probá con otro nombre, artículo o categoría.</p></div>`;
       status.textContent = products.length ? `${products.length} ${products.length === 1 ? "opción" : "opciones"} · mostrando ${visibleProducts.length}` : "0 opciones";
-      more.innerHTML = visibleProducts.length < products.length ? `<button class="button ghost" type="button" data-load-more>Ver más opciones</button>` : "";
       chips.innerHTML = ["Todos", ...window.KAIZEN_CATEGORIES.map((item) => item.name)].map((name) => `<button class="chip ${name === category ? "active" : ""}" data-category="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join("");
     }
     search.addEventListener("input", render);
     sort.addEventListener("change", render);
+    quantity.addEventListener("change", render);
     chips.addEventListener("click", (event) => { const button = event.target.closest("[data-category]"); if (button) { category = button.dataset.category; render(); } });
-    more.addEventListener("click", (event) => { if (event.target.closest("[data-load-more]")) { visibleCount += pageSize; render({ reset: false }); } });
     render();
   }
 
-  function upcomingDates() {
+  const appointmentDurationMinutes = (type) => String(type || "").toLocaleLowerCase("es-AR").includes("control") && type !== "Consulta inicial + 2 Controles" ? 20 : 40;
+  const scheduleKeyForModality = (modality) => modality === "Virtual" ? "virtual" : "presential";
+
+  function upcomingDates(modality) {
     const schedule = window.KaizenStore.getSchedule();
+    const channel = schedule[scheduleKeyForModality(modality)];
     const dates = [];
     const cursor = new Date();
     cursor.setHours(12, 0, 0, 0);
     for (let day = 1; day <= 28 && dates.length < 8; day++) {
       const date = new Date(cursor);
       date.setDate(cursor.getDate() + day);
-      if (schedule.weekdays.includes(date.getDay())) dates.push(date);
+      if (channel.weekdays.includes(date.getDay())) dates.push(date);
     }
     return dates;
   }
@@ -190,7 +191,7 @@
       form.innerHTML = `<div class="empty-state"><span class="tag">Cuenta administrativa</span><h2>La nutricionista no puede reservar turnos</h2><p class="muted">Desde el panel podés revisar las consultas a atender y administrar la disponibilidad.</p><a class="button" href="cuenta.html">Ir a administración</a></div>`;
       return;
     }
-    const selection = { type: "", date: "", time: "" };
+    const selection = { type: "", modality: "", date: "", time: "" };
     const dateRow = document.getElementById("date-row");
     const slotRow = document.getElementById("slot-row");
     const summary = document.getElementById("booking-summary");
@@ -201,23 +202,34 @@
       promoChoice.classList.add("used");
       promoChoice.querySelector("small").textContent = "Promoción ya utilizada por esta cuenta";
     }
-    dateRow.innerHTML = upcomingDates().map((date) => {
-      const iso = date.toISOString().slice(0, 10);
-      return `<button type="button" class="date-button" data-date="${iso}"><span>${date.toLocaleDateString("es-AR", { weekday: "short" })}</span><b>${date.getDate()}</b><small>${date.toLocaleDateString("es-AR", { month: "short" })}</small></button>`;
-    }).join("");
-    slotRow.innerHTML = `<p class="muted slot-help">Elegí una fecha para ver los horarios disponibles y ocupados.</p>`;
+    dateRow.innerHTML = `<p class="muted slot-help">Elegí una modalidad para ver las próximas fechas disponibles.</p>`;
+    slotRow.innerHTML = `<p class="muted slot-help">Elegí el tipo de consulta, la modalidad y una fecha para ver los horarios.</p>`;
+    const renderDates = () => {
+      const dates = upcomingDates(selection.modality);
+      dateRow.innerHTML = dates.length ? dates.map((date) => {
+        const iso = date.toISOString().slice(0, 10);
+        return `<button type="button" class="date-button" data-date="${iso}"><span>${date.toLocaleDateString("es-AR", { weekday: "short" })}</span><b>${date.getDate()}</b><small>${date.toLocaleDateString("es-AR", { month: "short" })}</small></button>`;
+      }).join("") : `<p class="muted slot-help">No hay días habilitados para esta modalidad.</p>`;
+      slotRow.innerHTML = `<p class="muted slot-help">Elegí una fecha para ver los horarios disponibles y ocupados.</p>`;
+    };
     const renderSlots = (date) => {
-      const occupied = new Set(window.KaizenStore.getOccupiedSlots(date));
-      slotRow.innerHTML = schedule.times.map((time) => occupied.has(time)
+      if (!selection.type || !selection.modality) { slotRow.innerHTML = `<p class="muted slot-help">Completá primero el tipo de consulta y la modalidad.</p>`; return; }
+      const duration = appointmentDurationMinutes(selection.type);
+      const occupied = new Set(window.KaizenStore.getOccupiedSlots(date, selection.modality, selection.type));
+      const times = schedule[scheduleKeyForModality(selection.modality)].times;
+      slotRow.innerHTML = times.map((time) => occupied.has(time)
         ? `<button type="button" class="slot-button occupied" disabled aria-label="${time}, ocupado"><strong>${time}</strong><span>Ocupado</span></button>`
-        : `<button type="button" class="slot-button" data-time="${time}"><strong>${time}</strong><span>Disponible</span></button>`).join("");
+        : `<button type="button" class="slot-button" data-time="${time}"><strong>${time}</strong><span>${duration} min</span></button>`).join("");
     };
     const updateSummary = () => {
-      summary.textContent = selection.type || selection.date || selection.time ? `${selection.type || "Tipo pendiente"} · Presencial · ${selection.date ? localDate(selection.date).toLocaleDateString("es-AR") : "Fecha pendiente"} · ${selection.time || "Horario pendiente"}` : "Tu selección aparecerá acá.";
+      const duration = selection.type ? `${appointmentDurationMinutes(selection.type)} min` : "Duración pendiente";
+      summary.textContent = selection.type || selection.modality || selection.date || selection.time ? `${selection.type || "Tipo pendiente"} · ${duration} · ${selection.modality || "Modalidad pendiente"} · ${selection.date ? localDate(selection.date).toLocaleDateString("es-AR") : "Fecha pendiente"} · ${selection.time || "Horario pendiente"}` : "Tu selección aparecerá acá.";
     };
     form.addEventListener("click", (event) => {
       const choice = event.target.closest("[data-booking-choice]");
-      if (choice && !choice.disabled) { form.querySelectorAll("[data-booking-choice]").forEach((item) => item.classList.remove("selected")); choice.classList.add("selected"); selection.type = choice.dataset.bookingChoice; }
+      if (choice && !choice.disabled) { form.querySelectorAll("[data-booking-choice]").forEach((item) => item.classList.remove("selected")); choice.classList.add("selected"); selection.type = choice.dataset.bookingChoice; selection.time = ""; if (selection.date) renderSlots(selection.date); }
+      const modality = event.target.closest("[data-booking-modality]");
+      if (modality) { form.querySelectorAll("[data-booking-modality]").forEach((item) => item.classList.remove("selected")); modality.classList.add("selected"); selection.modality = modality.dataset.bookingModality; selection.date = ""; selection.time = ""; renderDates(); }
       const date = event.target.closest("[data-date]");
       if (date) { form.querySelectorAll("[data-date]").forEach((item) => item.classList.remove("selected")); date.classList.add("selected"); selection.date = date.dataset.date; selection.time = ""; renderSlots(selection.date); }
       const time = event.target.closest("[data-time]");
@@ -229,7 +241,7 @@
       if (!window.KaizenStore.getSession()) { window.location.href = "acceso.html?return=nutricion.html"; return; }
       try {
         const appointment = window.KaizenStore.createAppointment({ ...selection, notes: document.getElementById("appointment-notes").value });
-        form.innerHTML = `<div class="empty-state"><span class="status ${appointment.status === "Confirmado" ? "confirmed" : "pending"}">${appointment.status}</span><h2>Tu turno quedó ${appointment.status.toLowerCase()}</h2><p>${localDate(appointment.date).toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })} a las ${appointment.time}</p><a class="button" href="cuenta.html">Ver mi turno</a></div>`;
+        form.innerHTML = `<div class="empty-state"><span class="status ${appointment.status === "Confirmado" ? "confirmed" : "pending"}">${appointment.status}</span><h2>Tu turno quedó ${appointment.status.toLowerCase()}</h2><p>${appointment.modality} · ${appointment.durationMinutes} min · ${localDate(appointment.date).toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })} a las ${appointment.time}</p><a class="button" href="cuenta.html">Ver mi turno</a></div>`;
       } catch (error) { result.textContent = error.message; result.className = "form-message error"; }
     });
   }
@@ -337,7 +349,9 @@
   }
 
   function appointmentCard(appointment, admin = false) {
-    return `<article class="record-card"><div class="record-head"><div><strong>${escapeHtml(appointment.type)}</strong><br><small class="muted">${escapeHtml(appointment.id)}${admin ? ` · ${escapeHtml(appointment.userName)}` : ""}</small></div><span class="status ${appointment.status === "Confirmado" ? "confirmed" : "pending"}">${escapeHtml(appointment.status)}</span></div><p>${localDate(appointment.date).toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })} · ${escapeHtml(appointment.time)} · Presencial</p>${admin ? `<p class="fine-print">${escapeHtml(appointment.userPhone || "Sin teléfono")} · ${escapeHtml(appointment.userEmail || "Sin email")}${appointment.notes ? ` · ${escapeHtml(appointment.notes)}` : ""}</p>` : ""}${admin && appointment.status === "Pendiente" ? `<div class="cluster"><button class="button small" data-appointment-status="Confirmado" data-appointment-id="${appointment.id}">Confirmar</button><button class="button ghost small" data-appointment-status="Cancelado" data-appointment-id="${appointment.id}">Rechazar</button></div>` : ""}</article>`;
+    const modality = appointment.modality || "Presencial";
+    const duration = Number(appointment.durationMinutes) || appointmentDurationMinutes(appointment.type);
+    return `<article class="record-card"><div class="record-head"><div><strong>${escapeHtml(appointment.type)}</strong><br><small class="muted">${escapeHtml(appointment.id)}${admin ? ` · ${escapeHtml(appointment.userName)}` : ""}</small></div><span class="status ${appointment.status === "Confirmado" ? "confirmed" : "pending"}">${escapeHtml(appointment.status)}</span></div><p>${localDate(appointment.date).toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })} · ${escapeHtml(appointment.time)} · ${escapeHtml(modality)} · ${duration} min</p>${admin ? `<p class="fine-print">${escapeHtml(appointment.userPhone || "Sin teléfono")} · ${escapeHtml(appointment.userEmail || "Sin email")}${appointment.notes ? ` · ${escapeHtml(appointment.notes)}` : ""}</p>` : ""}${admin && appointment.status === "Pendiente" ? `<div class="cluster"><button class="button small" data-appointment-status="Confirmado" data-appointment-id="${appointment.id}">Confirmar</button><button class="button ghost small" data-appointment-status="Cancelado" data-appointment-id="${appointment.id}">Rechazar</button></div>` : ""}</article>`;
   }
 
   function renderAppointmentCalendar(appointments) {
@@ -429,22 +443,29 @@
   function initSchedule() {
     const schedule = window.KaizenStore.getSchedule();
     const mode = document.getElementById("schedule-mode");
-    const times = document.getElementById("schedule-times");
     mode.value = schedule.mode;
-    const baseTimes = Array.from({ length: 25 }, (_, index) => {
-      const minutes = 8 * 60 + index * 30;
+    const baseTimes = Array.from({ length: 37 }, (_, index) => {
+      const minutes = 8 * 60 + index * 20;
       return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
     });
-    const availableTimes = [...new Set([...baseTimes, ...schedule.times])].sort();
-    times.innerHTML = availableTimes.map((time) => `<label class="time-check"><input type="checkbox" data-schedule-time value="${time}" ${schedule.times.includes(time) ? "checked" : ""}><span>${time}</span></label>`).join("");
-    document.querySelectorAll("[data-weekday]").forEach((checkbox) => { checkbox.checked = schedule.weekdays.includes(Number(checkbox.dataset.weekday)); });
+    const channels = [
+      { key: "presential", timesId: "schedule-presential-times" },
+      { key: "virtual", timesId: "schedule-virtual-times" }
+    ];
+    channels.forEach(({ key, timesId }) => {
+      const availableTimes = [...new Set([...baseTimes, ...schedule[key].times])].sort();
+      document.getElementById(timesId).innerHTML = availableTimes.map((time) => `<label class="time-check"><input type="checkbox" data-schedule-time="${key}" value="${time}" ${schedule[key].times.includes(time) ? "checked" : ""}><span>${time}</span></label>`).join("");
+      document.querySelectorAll(`[data-schedule-weekday="${key}"]`).forEach((checkbox) => { checkbox.checked = schedule[key].weekdays.includes(Number(checkbox.value)); });
+    });
     document.getElementById("schedule-form").addEventListener("submit", (event) => {
       event.preventDefault();
-      const weekdays = [...document.querySelectorAll("[data-weekday]:checked")].map((item) => Number(item.dataset.weekday));
-      const parsedTimes = [...document.querySelectorAll("[data-schedule-time]:checked")].map((item) => item.value).sort();
+      const parsed = Object.fromEntries(channels.map(({ key }) => [key, {
+        weekdays: [...document.querySelectorAll(`[data-schedule-weekday="${key}"]:checked`)].map((item) => Number(item.value)),
+        times: [...document.querySelectorAll(`[data-schedule-time="${key}"]:checked`)].map((item) => item.value).sort()
+      }]));
       const message = document.getElementById("schedule-message");
-      if (!weekdays.length || !parsedTimes.length) { message.textContent = "Elegí al menos un día y un horario disponible."; message.className = "form-message error"; return; }
-      window.KaizenStore.saveSchedule({ mode: mode.value, weekdays, times: parsedTimes });
+      if (channels.some(({ key }) => !parsed[key].weekdays.length || !parsed[key].times.length)) { message.textContent = "Elegí al menos un día y un horario para cada modalidad."; message.className = "form-message error"; return; }
+      window.KaizenStore.saveSchedule({ mode: mode.value, ...parsed });
       message.textContent = "Configuración guardada.";
       message.className = "form-message success";
     });

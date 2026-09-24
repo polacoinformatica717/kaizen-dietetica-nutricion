@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Reservá tu consulta nutricional presencial en Kaizen.">
+  <meta name="description" content="Reservá tu consulta nutricional presencial o virtual en Kaizen.">
   <title>Nutrición y turnos · Kaizen</title>
   <link rel="icon" href="assets/logo-round.jpeg">
   <link rel="stylesheet" href="css/styles.css">
@@ -15,7 +15,7 @@
   <div id="site-shell"></div>
   <main>
     <section class="page-hero">
-      <div class="container"><p class="eyebrow">Consultorio nutricional</p><h1>Un turno pensado para vos.</h1><p class="lead">Elegí el tipo de consulta y uno de los horarios presenciales disponibles. La política de confirmación se informa antes de reservar.</p></div>
+      <div class="container"><p class="eyebrow">Consultorio nutricional</p><h1>Un turno pensado para vos.</h1><p class="lead">Elegí el tipo de consulta, la modalidad presencial o virtual y uno de los horarios disponibles. La política de confirmación se informa antes de reservar.</p></div>
     </section>
 
     <section class="section">
@@ -24,13 +24,13 @@
           <p class="eyebrow">Cómo funciona</p>
           <h2>Tu consulta, sin vueltas.</h2>
           <p class="lead">Reservá con tu cuenta y consultá el estado del turno desde “Mi cuenta”.</p>
-          <ul class="check-list"><li>Agenda actualizada</li><li>Atención presencial</li><li>Recordatorio dentro de tu cuenta</li></ul>
+          <ul class="check-list"><li>Consulta inicial de hasta 40 minutos</li><li>Controles de 20 minutos</li><li>Atención presencial o virtual</li><li>Recordatorio dentro de tu cuenta</li></ul>
           <div class="booking-summary"><strong>Política actual:</strong> <span id="booking-mode">Cargando…</span></div>
         </div>
 
         <form class="form-card booking-steps" id="booking-form">
-          <div class="booking-step"><h3>1. Tipo de consulta</h3><div class="choice-grid choice-grid-three"><button type="button" class="choice-card" data-booking-choice="Consulta inicial"><strong>Consulta inicial</strong><small>60 minutos · evaluación y objetivos</small></button><button type="button" class="choice-card" data-booking-choice="Control nutricional"><strong>Control nutricional</strong><small>30 minutos · seguimiento</small></button><button type="button" class="choice-card promo-choice" data-booking-choice="Consulta inicial + 2 Controles"><span class="tag">Promoción</span><strong>Consulta inicial + 2 Controles</strong><small>Una consulta inicial y dos seguimientos · único uso por cliente</small></button></div></div>
-          <div class="booking-step"><h3>2. Modalidad</h3><div class="fixed-choice"><strong>Presencial</strong><span>Atención en el consultorio Kaizen</span></div></div>
+          <div class="booking-step"><h3>1. Tipo de consulta</h3><div class="choice-grid choice-grid-three"><button type="button" class="choice-card" data-booking-choice="Consulta inicial"><strong>Consulta inicial</strong><small>Hasta 40 minutos · evaluación y objetivos</small></button><button type="button" class="choice-card" data-booking-choice="Control nutricional"><strong>Control nutricional</strong><small>20 minutos · seguimiento</small></button><button type="button" class="choice-card promo-choice" data-booking-choice="Consulta inicial + 2 Controles"><span class="tag">Promoción</span><strong>Consulta inicial + 2 Controles</strong><small>Inicial de hasta 40 min + dos controles de 20 min · único uso por cliente</small></button></div></div>
+          <div class="booking-step"><h3>2. Modalidad</h3><div class="choice-grid"><button type="button" class="choice-card" data-booking-modality="Presencial"><strong>Presencial</strong><small>Atención en el consultorio Kaizen</small></button><button type="button" class="choice-card" data-booking-modality="Virtual"><strong>Virtual</strong><small>Consulta online desde donde estés</small></button></div></div>
           <div class="booking-step"><h3>3. Fecha</h3><div class="date-row" id="date-row"></div></div>
           <div class="booking-step"><h3>4. Horario</h3><div class="slot-row" id="slot-row"></div></div>
           <label>Comentario para la nutricionista<textarea id="appointment-notes" placeholder="Opcional: contanos brevemente el motivo de la consulta"></textarea></label>
