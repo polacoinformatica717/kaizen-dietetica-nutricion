@@ -68,14 +68,18 @@ const created = window.KaizenStore.saveCatalogProduct({
   unit: "250 g",
   price: 2500,
   stock: 2,
+  image: "data:image/png;base64,AA==",
   condition: "Precio por paquete",
   description: "Producto creado para validar la administración del catálogo."
 });
 assert.equal(window.KaizenStore.getCatalogProducts().length, 2095);
 assert.equal(created.stock, 2);
-const edited = window.KaizenStore.saveCatalogProduct({ ...created, price: 2800, stock: 3 });
+assert.equal(created.image, "data:image/png;base64,AA==");
+const edited = window.KaizenStore.saveCatalogProduct({ ...created, price: 2800, stock: 3, image: "frutos-secos.jpeg" });
 assert.equal(edited.price, 2800);
 assert.equal(edited.stock, 3);
+assert.equal(edited.image, "frutos-secos.jpeg");
+assert.throws(() => window.KaizenStore.saveCatalogProduct({ ...edited, image: "javascript:alert(1)" }), /formato válido/);
 
 localStorage.setItem("kaizen_session_v1", JSON.stringify(customer));
 assert.throws(() => window.KaizenStore.addToCart(created.id, 4), /Solo quedan 3 unidades/);

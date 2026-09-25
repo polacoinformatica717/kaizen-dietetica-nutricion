@@ -31,6 +31,16 @@
   });
   const catalogState = () => normalizeCatalogState(read(KEYS.catalog, defaultCatalogState()));
   const normalizeStock = (value) => value === "" || value === null || value === undefined ? null : Math.max(0, Math.floor(Number(value) || 0));
+  const normalizeProductImage = (value) => {
+    const image = String(value || "").trim();
+    if (!image) return "";
+    if (/^data:image\/(?:png|jpe?g|webp|gif);base64,[a-z0-9+/=]+$/i.test(image)) {
+      if (image.length > 380000) throw new Error("La imagen es demasiado pesada. Elegí una foto más liviana.");
+      return image;
+    }
+    if (/^(?:assets\/)?[a-z0-9][a-z0-9._-]*\.(?:png|jpe?g|webp|gif|avif)$/i.test(image)) return image.replace(/^assets\//i, "");
+    throw new Error("La imagen seleccionada no tiene un formato válido.");
+  };
   function getCatalogProducts() {
     const state = catalogState();
     const removed = new Set(state.deletedIds);
@@ -427,6 +437,8 @@
     if (priceStatus === "available" && price <= 0) throw new Error("Ingresá un precio mayor que cero o marcá precio a consultar.");
     const id = existing?.id || Math.max(0, ...BASE_PRODUCTS.map((item) => item.id), ...catalogState().custom.map((item) => Number(item.id) || 0)) + 1;
     const isPromotion = Boolean(input.isPromotion);
+    const categoryImage = window.KAIZEN_CATEGORIES.find((item) => item.name === category)?.image || "opciones-especiales.jpeg";
+    const image = normalizeProductImage(Object.prototype.hasOwnProperty.call(input, "image") ? input.image : existing?.image) || categoryImage;
     return persistCatalogProduct({
       ...(existing || {}),
       id,
@@ -438,7 +450,7 @@
       unit,
       condition: String(input.condition || "").trim(),
       priceStatus,
-      image: window.KAIZEN_CATEGORIES.find((item) => item.name === category)?.image || "opciones-especiales.jpeg",
+      image,
       isPromotion,
       promotionKey: isPromotion ? (existing?.promotionKey || article) : null,
       promotionMinimumQuantity: isPromotion ? Math.max(1, Number(input.promotionMinimumQuantity) || 1) : 1,

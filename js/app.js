@@ -9,6 +9,13 @@
     return direction * (Number(left.price) - Number(right.price));
   };
   const escapeHtml = (value) => String(value ?? "").replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char]));
+  const productImageSrc = (product) => {
+    const image = String(product?.image || "").trim();
+    if (/^data:image\/(?:png|jpe?g|webp|gif);base64,/i.test(image)) return image;
+    if (/^assets\/[a-z0-9][a-z0-9._-]*\.(?:png|jpe?g|webp|gif|avif)$/i.test(image)) return image;
+    if (/^[a-z0-9][a-z0-9._-]*\.(?:png|jpe?g|webp|gif|avif)$/i.test(image)) return `assets/${image}`;
+    return window.KAIZEN_CATEGORY_IMAGE(product?.category);
+  };
   const CONTACT = Object.freeze({
     phoneDisplay: "3644-594151",
     whatsapp: "5493644594151",
@@ -32,7 +39,12 @@
     const isAdmin = session?.role === "admin";
     const active = (name) => page === name ? "active" : "";
     return `
-      <div class="announcement">Compra online o por <a href="${whatsappUrl("Hola Kaizen, quisiera hacer una consulta.")}" target="_blank" rel="noopener noreferrer">WhatsApp al ${CONTACT.phoneDisplay}</a> · Retiro en el local o envío a domicilio</div>
+      <div class="announcement"><div class="announcement-inner">
+        <span class="announcement-item"><span class="announcement-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9h12l1 11H5L6 9Z"/><path d="M9 9V7a3 3 0 0 1 6 0v2"/></svg></span><strong>Compra online</strong></span>
+        <a class="announcement-item announcement-whatsapp" href="${whatsappUrl("Hola Kaizen, quisiera hacer una consulta.")}" target="_blank" rel="noopener noreferrer"><span class="announcement-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11.5a8 8 0 0 1-11.8 7L4 20l1.4-4A8 8 0 1 1 20 11.5Z"/><path d="M9 8.5c.8 2 2.2 3.4 4.2 4.1l1-1 1.8.8c-.3 1.7-1.5 2.4-2.8 2.1-3.2-.7-5.8-3.3-6.6-6.5-.3-1.3.4-2.4 2.1-2.9l.8 1.8L9 8.5Z"/></svg></span><span>WhatsApp <strong>${CONTACT.phoneDisplay}</strong></span></a>
+        <span class="announcement-item"><span class="announcement-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h16v11H4z"/><path d="M8 8V5h8v3M4 12h16"/></svg></span>Retiro en el local</span>
+        <span class="announcement-item"><span class="announcement-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h11v11H3zM14 10h4l3 3v4h-7z"/><circle cx="7" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></svg></span>Envíos a domicilio</span>
+      </div></div>
       <header class="site-header">
         <div class="header-inner">
           <a class="brand" href="index.html" aria-label="Kaizen, ir al inicio"><img src="assets/logo-horizontal-v2.png" alt="Kaizen Dietética & Nutrición"></a>
@@ -91,7 +103,7 @@
   function productCard(product) {
     return `
       <article class="product-card" data-product-card="${product.id}">
-        <div class="product-image"><img src="${window.KAIZEN_CATEGORY_IMAGE(product.category)}" alt="${escapeHtml(product.name)}"><span class="tag">${escapeHtml(product.unit)}</span></div>
+        <div class="product-image"><img src="${escapeHtml(productImageSrc(product))}" alt="${escapeHtml(product.name)}"><span class="tag">${escapeHtml(product.unit)}</span></div>
         <div class="product-body"><span class="product-meta">${escapeHtml(product.category)} · ${escapeHtml(product.article)}${product.isPromotion ? " · Promoción" : ""}</span><h3>${escapeHtml(product.name)}</h3><p>${escapeHtml(product.description)}</p><div class="product-bottom"><span class="price">${productPriceLabel(product)}</span><div data-product-actions="${product.id}">${productActions(product)}</div></div></div>
       </article>`;
   }
@@ -119,7 +131,7 @@
   function productGroupCard(group) {
     const selected = selectedVariant(group);
     return `<article class="product-card grouped-product-card" data-product-group="${escapeHtml(group.key)}">
-      <div class="product-image"><img src="${window.KAIZEN_CATEGORY_IMAGE(group.category)}" alt="${escapeHtml(group.name)}"><span class="tag">${group.variants.length} ${group.variants.length === 1 ? "opción" : "opciones"}</span></div>
+      <div class="product-image"><img data-group-image src="${escapeHtml(productImageSrc(selected))}" alt="${escapeHtml(group.name)}"><span class="tag">${group.variants.length} ${group.variants.length === 1 ? "opción" : "opciones"}</span></div>
       <div class="product-body"><span class="product-meta">${escapeHtml(group.category)} · ${escapeHtml(group.article)}</span><h3>${escapeHtml(group.name)}</h3><p class="group-helper">Elegí una presentación para ver su condición, precio y disponibilidad.</p><label class="variant-picker">Presentación<select data-product-variant>${group.variants.map((product) => `<option value="${product.id}" ${product.id === selected.id ? "selected" : ""}>${escapeHtml(variantOptionLabel(product))}</option>`).join("")}</select></label><div data-variant-detail>${variantDetailMarkup(selected)}</div></div>
     </article>`;
   }
@@ -164,7 +176,11 @@
       if (!picker) return;
       const card = picker.closest("[data-product-group]");
       const product = window.KaizenStore.getCatalogProducts().find((item) => item.id === Number(picker.value));
-      if (card && product) card.querySelector("[data-variant-detail]").innerHTML = variantDetailMarkup(product);
+      if (card && product) {
+        card.querySelector("[data-variant-detail]").innerHTML = variantDetailMarkup(product);
+        const image = card.querySelector("[data-group-image]");
+        if (image) image.src = productImageSrc(product);
+      }
     });
     window.addEventListener("kaizen:cart", updateCartBadge);
   }
@@ -365,7 +381,7 @@
     }
     const summary = window.KaizenStore.getCartSummary();
     linesElement.innerHTML = summary.lines.length ? summary.lines.map(({ product, quantity }) => `
-      <article class="cart-page-line"><img src="${window.KAIZEN_CATEGORY_IMAGE(product.category)}" alt=""><div><span class="product-meta">${escapeHtml(product.article)}</span><h3>${escapeHtml(product.name)}</h3><p class="muted">${escapeHtml(product.unit)} · ${money(product.price)} c/u</p></div><div class="line-price">${money(product.price * quantity)}</div><div class="product-qty"><button data-qty="${product.id}" data-value="${quantity - 1}" aria-label="Quitar uno">−</button><strong>${quantity}</strong><button data-qty="${product.id}" data-value="${quantity + 1}" aria-label="Agregar uno">+</button></div></article>`).join("") : `<div class="empty-state"><h2>Tu carrito está vacío</h2><p class="muted">Explorá el catálogo y agregá tus productos favoritos.</p><a class="button" href="tienda.html">Ir a la tienda</a></div>`;
+      <article class="cart-page-line"><img src="${escapeHtml(productImageSrc(product))}" alt=""><div><span class="product-meta">${escapeHtml(product.article)}</span><h3>${escapeHtml(product.name)}</h3><p class="muted">${escapeHtml(product.unit)} · ${money(product.price)} c/u</p></div><div class="line-price">${money(product.price * quantity)}</div><div class="product-qty"><button data-qty="${product.id}" data-value="${quantity - 1}" aria-label="Quitar uno">−</button><strong>${quantity}</strong><button data-qty="${product.id}" data-value="${quantity + 1}" aria-label="Agregar uno">+</button></div></article>`).join("") : `<div class="empty-state"><h2>Tu carrito está vacío</h2><p class="muted">Explorá el catálogo y agregá tus productos favoritos.</p><a class="button" href="tienda.html">Ir a la tienda</a></div>`;
     document.getElementById("cart-page-total").textContent = money(summary.total);
     document.getElementById("checkout-panel").hidden = !summary.lines.length;
   }
@@ -525,16 +541,64 @@
     const pagination = document.getElementById("admin-product-pagination");
     const message = document.getElementById("admin-product-message");
     const categorySelect = document.getElementById("admin-product-category");
+    const imageInput = document.getElementById("admin-product-image");
+    const imageFile = document.getElementById("admin-product-image-file");
+    const imagePreview = document.getElementById("admin-product-image-preview");
+    const imageHelp = document.getElementById("admin-product-image-help");
+    const imageDefault = document.getElementById("admin-product-image-default");
+    const cancelButton = document.getElementById("admin-product-cancel");
     categorySelect.innerHTML = window.KAIZEN_CATEGORIES.map((category) => `<option value="${escapeHtml(category.name)}">${escapeHtml(category.name)}</option>`).join("");
     let page = 1;
     const pageSize = 24;
+    const categoryImageName = () => window.KAIZEN_CATEGORIES.find((category) => category.name === categorySelect.value)?.image || "opciones-especiales.jpeg";
+    const setImagePreview = (value, name = "producto", isCategoryDefault = false) => {
+      imageInput.value = String(value || categoryImageName());
+      imageInput.dataset.categoryDefault = String(isCategoryDefault);
+      imagePreview.src = productImageSrc({ image: imageInput.value, category: categorySelect.value });
+      imagePreview.alt = `Vista previa de ${name}`;
+      imageHelp.textContent = isCategoryDefault ? "Se está usando la imagen general de la categoría." : "Imagen personalizada lista para guardar.";
+    };
+    const imageDataFromFile = (file) => new Promise((resolve, reject) => {
+      if (!file || !/^image\/(?:jpeg|png|webp)$/i.test(file.type)) { reject(new Error("Elegí una imagen JPG, PNG o WebP.")); return; }
+      if (file.size > 8 * 1024 * 1024) { reject(new Error("La imagen original no puede superar los 8 MB.")); return; }
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("No pudimos leer la imagen seleccionada."));
+      reader.onload = () => {
+        const source = new Image();
+        source.onerror = () => reject(new Error("El archivo seleccionado no es una imagen válida."));
+        source.onload = () => {
+          let limit = 960;
+          let encoded = "";
+          while (limit >= 480) {
+            const scale = Math.min(1, limit / Math.max(source.naturalWidth, source.naturalHeight));
+            const canvas = document.createElement("canvas");
+            canvas.width = Math.max(1, Math.round(source.naturalWidth * scale));
+            canvas.height = Math.max(1, Math.round(source.naturalHeight * scale));
+            canvas.getContext("2d").drawImage(source, 0, 0, canvas.width, canvas.height);
+            encoded = canvas.toDataURL("image/webp", limit > 700 ? .82 : .74);
+            if (encoded.length <= 320000) break;
+            limit = Math.floor(limit * .72);
+          }
+          if (!encoded || encoded.length > 380000) reject(new Error("La imagen sigue siendo demasiado pesada después de optimizarla."));
+          else resolve(encoded);
+        };
+        source.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
     const clearForm = () => {
       form.reset();
       document.getElementById("admin-product-id").value = "";
       document.getElementById("admin-product-form-title").textContent = "Agregar producto";
       document.getElementById("admin-product-stock").value = "";
+      imageFile.value = "";
+      setImagePreview(categoryImageName(), "nuevo producto", true);
+      cancelButton.textContent = "Cancelar";
+      form.dataset.mode = "new";
       form.hidden = false;
       message.textContent = "";
+      message.className = "form-message";
+      form.scrollIntoView({ behavior: "smooth", block: "start" });
     };
     const editProduct = (product) => {
       document.getElementById("admin-product-id").value = product.id;
@@ -550,6 +614,14 @@
       document.getElementById("admin-product-consult").checked = isConsultPrice(product);
       document.getElementById("admin-product-promotion").checked = Boolean(product.isPromotion);
       document.getElementById("admin-product-promotion-minimum").value = product.promotionMinimumQuantity || 1;
+      const defaultImage = categoryImageName();
+      const storedImage = String(product.image || "").replace(/^assets\//i, "");
+      imageFile.value = "";
+      setImagePreview(storedImage || defaultImage, product.name, !storedImage || storedImage === defaultImage);
+      cancelButton.textContent = "Cancelar";
+      form.dataset.mode = "edit";
+      message.textContent = "";
+      message.className = "form-message";
       form.hidden = false;
       form.scrollIntoView({ behavior: "smooth", block: "start" });
     };
@@ -559,11 +631,29 @@
       const totalPages = Math.max(1, Math.ceil(products.length / pageSize));
       page = Math.min(page, totalPages);
       const visible = products.slice((page - 1) * pageSize, page * pageSize);
-      list.innerHTML = visible.length ? visible.map((product) => `<article class="admin-product-row"><div><span class="product-meta">${escapeHtml(product.category)} · ${escapeHtml(product.article)}</span><strong>${escapeHtml(product.name)}</strong><small>${escapeHtml(product.unit)} · ${productPriceLabel(product)} · ${escapeHtml(window.KaizenStore.stockLabel(product))}</small></div><div class="cluster"><button class="button ghost small" type="button" data-edit-product="${product.id}">Editar</button><button class="button danger-outline small" type="button" data-remove-product="${product.id}">Quitar</button></div></article>`).join("") : `<div class="empty-state"><p>No encontramos productos.</p></div>`;
+      list.innerHTML = visible.length ? visible.map((product) => `<article class="admin-product-row"><img class="admin-product-thumbnail" src="${escapeHtml(productImageSrc(product))}" alt=""><div class="admin-product-copy"><span class="product-meta">${escapeHtml(product.category)} · ${escapeHtml(product.article)}</span><strong>${escapeHtml(product.name)}</strong><small>${escapeHtml(product.unit)} · ${productPriceLabel(product)} · ${escapeHtml(window.KaizenStore.stockLabel(product))}</small></div><div class="cluster admin-product-actions"><button class="button ghost small" type="button" data-edit-product="${product.id}">Editar</button><button class="button danger-outline small" type="button" data-remove-product="${product.id}">Quitar</button></div></article>`).join("") : `<div class="empty-state"><p>No encontramos productos.</p></div>`;
       pagination.innerHTML = products.length > pageSize ? `<button class="button ghost small" type="button" data-admin-product-page="${page - 1}" ${page === 1 ? "disabled" : ""}>‹ Anterior</button><span>Página ${page} de ${totalPages} · ${products.length} variantes</span><button class="button ghost small" type="button" data-admin-product-page="${page + 1}" ${page === totalPages ? "disabled" : ""}>Siguiente ›</button>` : `<span>${products.length} variantes</span>`;
     };
     document.getElementById("admin-product-new").addEventListener("click", clearForm);
-    document.getElementById("admin-product-cancel").addEventListener("click", () => { form.hidden = true; message.textContent = ""; });
+    cancelButton.addEventListener("click", () => { form.hidden = true; message.textContent = ""; cancelButton.textContent = "Cancelar"; });
+    imageDefault.addEventListener("click", () => { imageFile.value = ""; setImagePreview(categoryImageName(), document.getElementById("admin-product-name").value || "producto", true); });
+    categorySelect.addEventListener("change", () => { if (imageInput.dataset.categoryDefault === "true") setImagePreview(categoryImageName(), document.getElementById("admin-product-name").value || "producto", true); });
+    imageFile.addEventListener("change", async () => {
+      const [file] = imageFile.files;
+      if (!file) return;
+      message.textContent = "Optimizando imagen…";
+      message.className = "form-message";
+      try {
+        const image = await imageDataFromFile(file);
+        setImagePreview(image, document.getElementById("admin-product-name").value || file.name, false);
+        message.textContent = "Imagen lista. Guardá el producto para aplicar el cambio.";
+        message.className = "form-message success";
+      } catch (error) {
+        imageFile.value = "";
+        message.textContent = error.message;
+        message.className = "form-message error";
+      }
+    });
     search.addEventListener("input", () => { page = 1; render(); });
     pagination.addEventListener("click", (event) => { const button = event.target.closest("[data-admin-product-page]"); if (button && !button.disabled) { page = Number(button.dataset.adminProductPage); render(); } });
     list.addEventListener("click", (event) => {
@@ -587,12 +677,18 @@
           stock: document.getElementById("admin-product-stock").value,
           condition: document.getElementById("admin-product-condition").value,
           description: document.getElementById("admin-product-description").value,
+          image: imageInput.value,
           priceStatus: document.getElementById("admin-product-consult").checked ? "consult" : "available",
           isPromotion: document.getElementById("admin-product-promotion").checked,
           promotionMinimumQuantity: document.getElementById("admin-product-promotion-minimum").value
         });
         message.textContent = `${product.name} guardado correctamente.`;
         message.className = "form-message success";
+        document.getElementById("admin-product-id").value = product.id;
+        document.getElementById("admin-product-form-title").textContent = `Editar ${product.name}`;
+        setImagePreview(product.image, product.name, String(product.image || "").replace(/^assets\//i, "") === categoryImageName());
+        cancelButton.textContent = "Cerrar";
+        form.dataset.mode = "edit";
         document.getElementById("admin-product-count").textContent = window.KaizenStore.getCatalogProducts().length;
         render();
       } catch (error) { message.textContent = error.message; message.className = "form-message error"; }

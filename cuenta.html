@@ -6,10 +6,10 @@
   <meta name="description" content="Gestioná tus pedidos y turnos de Kaizen.">
   <title>Mi cuenta · Kaizen</title>
   <link rel="icon" href="assets/logo-round.jpeg">
-  <link rel="stylesheet" href="css/styles.css?v=20260924b">
-  <script src="js/data.js?v=20260924b" defer></script>
-  <script src="js/store.js?v=20260924b" defer></script>
-  <script src="js/app.js?v=20260924b" defer></script>
+  <link rel="stylesheet" href="css/styles.css?v=20260925a">
+  <script src="js/data.js?v=20260925a" defer></script>
+  <script src="js/store.js?v=20260925a" defer></script>
+  <script src="js/app.js?v=20260925a" defer></script>
 </head>
 <body data-page="account">
   <div id="site-shell"></div>
@@ -50,6 +50,10 @@
             <form class="form-card stack admin-product-form" id="admin-product-form" hidden>
               <input type="hidden" id="admin-product-id">
               <h3 id="admin-product-form-title">Agregar producto</h3>
+              <section class="admin-product-image-editor" aria-labelledby="admin-product-image-title">
+                <div class="admin-product-image-preview"><img id="admin-product-image-preview" src="assets/opciones-especiales.jpeg" alt="Vista previa de la imagen del producto"></div>
+                <div class="admin-product-image-copy"><h4 id="admin-product-image-title">Imagen del producto</h4><p>Elegí una foto JPG, PNG o WebP. Se optimizará automáticamente para que el catálogo siga siendo liviano.</p><input type="hidden" id="admin-product-image"><input class="sr-only" type="file" id="admin-product-image-file" accept="image/jpeg,image/png,image/webp"><div class="cluster"><label class="button ghost small admin-image-upload" for="admin-product-image-file">Elegir imagen</label><button class="button ghost small" type="button" id="admin-product-image-default">Usar imagen de categoría</button></div><small id="admin-product-image-help">Podés reemplazarla antes o después de guardar.</small></div>
+              </section>
               <div class="field-grid"><label>Nombre<input id="admin-product-name" required></label><label>Código de artículo<input id="admin-product-article" required></label></div>
               <div class="field-grid"><label>Categoría<select id="admin-product-category" required></select></label><label>Presentación o unidad<input id="admin-product-unit" placeholder="Ej.: 500 g" required></label></div>
               <div class="field-grid"><label>Precio<input id="admin-product-price" type="number" min="0" step="1"></label><label>Stock<input id="admin-product-stock" type="number" min="0" step="1" placeholder="Vacío: sin control"></label></div>
