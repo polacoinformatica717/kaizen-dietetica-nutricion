@@ -85,6 +85,7 @@ button { cursor: pointer; }
   background: var(--lime);
 }
 .announcement-icon svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.announcement-whatsapp .announcement-icon svg { width: 14px; height: 14px; fill: currentColor; stroke: none; }
 
 .site-header {
   position: sticky;
@@ -336,36 +337,23 @@ h3 { line-height: 1.2; }
   min-height: 390px;
   position: relative;
   overflow: hidden;
-  display: grid;
-  place-items: center;
-  padding: 28px;
-  background: #dce9d9;
-  isolation: isolate;
-}
-.home-consultorio-media::before {
-  content: "";
-  position: absolute;
-  z-index: -2;
-  inset: -28px;
-  background: linear-gradient(rgba(21, 61, 47, .32), rgba(21, 61, 47, .32)), url("../assets/opciones-especiales.jpeg") center / cover;
-  filter: blur(18px) saturate(.75);
-  transform: scale(1.1);
+  background: var(--pine);
 }
 .home-consultorio-media::after {
   content: "";
   position: absolute;
-  z-index: -1;
+  z-index: 1;
   inset: 0;
-  background: linear-gradient(135deg, rgba(255, 253, 248, .38), rgba(21, 61, 47, .22));
+  pointer-events: none;
+  background: linear-gradient(110deg, rgba(21, 61, 47, .08), transparent 48%, rgba(215, 239, 116, .1));
 }
 .home-consultorio-media img {
-  width: min(100%, 315px);
-  height: 335px;
-  object-fit: contain;
-  border: 8px solid rgba(255, 253, 248, .88);
-  border-radius: 18px;
-  background: var(--paper);
-  box-shadow: 0 22px 55px rgba(16, 47, 36, .27);
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
 }
 .home-consultorio .feature-copy { padding: clamp(26px, 3.5vw, 48px); }
 .home-consultorio .feature-copy h2 { max-width: 650px; margin-bottom: 10px; font-size: clamp(1.85rem, 2.8vw, 2.75rem); }
@@ -377,6 +365,7 @@ h3 { line-height: 1.2; }
 .page-hero .lead { margin-bottom: 0; }
 
 .catalog-shell { display: grid; grid-template-columns: 255px 1fr; gap: 32px; align-items: start; }
+.catalog-shell > * { min-width: 0; }
 .filter-panel {
   position: sticky;
   top: 103px;
@@ -385,19 +374,31 @@ h3 { line-height: 1.2; }
   border-radius: 18px;
   background: var(--paper);
 }
-.filter-panel h2 { margin-bottom: 18px; font-family: inherit; font-size: 1rem; font-weight: 850; letter-spacing: 0; }
-.chip-list { display: grid; gap: 5px; }
+.filter-panel h2 { display: flex; align-items: center; gap: 9px; margin-bottom: 18px; font-family: Georgia, serif; font-size: 1.25rem; font-weight: 700; letter-spacing: -.015em; }
+.filter-panel h2::before { content: ""; width: 13px; height: 9px; border-radius: 100% 0 100% 0; background: var(--green); transform: rotate(-20deg); }
+.chip-list { display: grid; gap: 6px; }
 .chip {
   width: 100%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   padding: 10px 12px;
-  border: 0;
-  border-radius: 10px;
+  border: 1px solid transparent;
+  border-radius: 12px;
   color: var(--ink);
   background: transparent;
   text-align: left;
-  font-size: .9rem;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: .96rem;
+  font-weight: 600;
+  line-height: 1.15;
+  transition: color 160ms ease, background 160ms ease, border-color 160ms ease, transform 160ms ease;
 }
-.chip:hover, .chip.active { background: var(--mist); color: var(--green); font-weight: 800; }
+.chip::before { content: ""; flex: 0 0 auto; width: 8px; height: 8px; border: 2px solid var(--green); border-radius: 50%; background: transparent; }
+.chip:hover { border-color: var(--line); background: var(--mist); transform: translateX(2px); }
+.chip.active { color: white; border-color: var(--pine); background: var(--pine); box-shadow: 0 8px 18px rgba(21, 61, 47, .14); }
+.chip.active::before { border-color: var(--lime); background: var(--lime); box-shadow: 0 0 0 3px rgba(215, 239, 116, .15); }
 .catalog-toolbar { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(180px, auto) minmax(145px, auto); gap: 12px; margin-bottom: 18px; }
 .search-wrap { position: relative; }
 .search-wrap input { padding-left: 45px; }
@@ -706,6 +707,8 @@ dialog::backdrop { background: rgba(10, 30, 22, .6); backdrop-filter: blur(3px);
   transform: rotate(-24deg);
 }
 .contact-icon svg { width: 26px; height: 26px; display: block; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.contact-card.whatsapp .contact-icon { background: linear-gradient(145deg, #2b9a68, #176344); }
+.contact-icon.whatsapp-icon svg { width: 29px; height: 29px; fill: currentColor; stroke: none; }
 .contact-kicker { color: var(--green); font-size: .72rem; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
 .contact-card strong { grid-column: 2; overflow-wrap: anywhere; font-size: .96rem; }
 .contact-card small { grid-column: 2; color: var(--muted); }
@@ -736,8 +739,9 @@ dialog::backdrop { background: rgba(10, 30, 22, .6); backdrop-filter: blur(3px);
   .product-carousel { grid-auto-columns: calc((100% - 20px) / 2); }
   .catalog-shell { grid-template-columns: 1fr; }
   .filter-panel { position: static; }
-  .chip-list { display: flex; flex-wrap: wrap; }
-  .chip { width: auto; }
+  .chip-list { display: flex; flex-wrap: nowrap; gap: 8px; overflow-x: auto; padding: 2px 1px 10px; scrollbar-width: none; scroll-snap-type: inline proximity; }
+  .chip-list::-webkit-scrollbar { display: none; }
+  .chip { width: auto; flex: 0 0 auto; scroll-snap-align: start; }
   .booking-layout { grid-template-columns: 1fr; }
   .booking-intro { position: static; }
   .consultation-guide-grid { grid-template-columns: repeat(2, 1fr); }
@@ -789,8 +793,8 @@ dialog::backdrop { background: rgba(10, 30, 22, .6); backdrop-filter: blur(3px);
   .time-option-grid { grid-template-columns: repeat(3, 1fr); }
   .address-grid { grid-template-columns: 1fr; }
   .address-grid .address-street, .address-grid .address-reference { grid-column: auto; }
-  .home-consultorio-media { min-height: 315px; padding: 20px; }
-  .home-consultorio-media img { width: min(100%, 275px); height: 275px; border-width: 6px; }
+  .home-consultorio-media { min-height: 285px; }
+  .home-consultorio-media img { object-position: 46% center; }
   .account-feature-media { min-height: 230px; }
   .account-feature-media::after { background: linear-gradient(180deg, transparent 55%, rgba(231,239,232,.86)); }
   .admin-panel-heading { align-items: stretch; flex-direction: column; }

@@ -9,6 +9,11 @@
     return direction * (Number(left.price) - Number(right.price));
   };
   const escapeHtml = (value) => String(value ?? "").replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char]));
+  const categoryDisplayName = (value) => {
+    if (value === "Todos") return "Todos los productos";
+    const lowercaseWords = new Set(["y", "e", "o", "de", "del", "para"]);
+    return String(value).toLocaleLowerCase("es-AR").split(" ").map((word, index) => lowercaseWords.has(word) && index ? word : `${word.charAt(0).toLocaleUpperCase("es-AR")}${word.slice(1)}`).join(" ");
+  };
   const productImageSrc = (product) => {
     const image = String(product?.image || "").trim();
     if (/^data:image\/(?:png|jpe?g|webp|gif);base64,/i.test(image)) return image;
@@ -41,7 +46,7 @@
     return `
       <div class="announcement"><div class="announcement-inner">
         <span class="announcement-item"><span class="announcement-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9h12l1 11H5L6 9Z"/><path d="M9 9V7a3 3 0 0 1 6 0v2"/></svg></span><strong>Compra online</strong></span>
-        <a class="announcement-item announcement-whatsapp" href="${whatsappUrl("Hola Kaizen, quisiera hacer una consulta.")}" target="_blank" rel="noopener noreferrer"><span class="announcement-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11.5a8 8 0 0 1-11.8 7L4 20l1.4-4A8 8 0 1 1 20 11.5Z"/><path d="M9 8.5c.8 2 2.2 3.4 4.2 4.1l1-1 1.8.8c-.3 1.7-1.5 2.4-2.8 2.1-3.2-.7-5.8-3.3-6.6-6.5-.3-1.3.4-2.4 2.1-2.9l.8 1.8L9 8.5Z"/></svg></span><span>WhatsApp <strong>${CONTACT.phoneDisplay}</strong></span></a>
+        <a class="announcement-item announcement-whatsapp" href="${whatsappUrl("Hola Kaizen, quisiera hacer una consulta.")}" target="_blank" rel="noopener noreferrer"><span class="announcement-icon"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93a7.898 7.898 0 0 0-2.327-5.607zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.63-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.231.148-.429.05-.197-.1-.836-.308-1.592-.984-.59-.525-.986-1.175-1.1-1.372-.116-.198-.013-.306.085-.404.087-.087.198-.231.297-.346.1-.116.133-.198.198-.33.065-.134.034-.25-.016-.35-.05-.099-.445-1.074-.61-1.47-.16-.388-.323-.334-.445-.34-.114-.006-.247-.007-.378-.007a.729.729 0 0 0-.528.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.132 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.151.906.129 1.247.078.38-.057 1.17-.48 1.336-.943.164-.462.164-.858.114-.943-.049-.084-.182-.132-.38-.23z"/></svg></span><span>WhatsApp <strong>${CONTACT.phoneDisplay}</strong></span></a>
         <span class="announcement-item"><span class="announcement-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h16v11H4z"/><path d="M8 8V5h8v3M4 12h16"/></svg></span>Retiro en el local</span>
         <span class="announcement-item"><span class="announcement-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h11v11H3zM14 10h4l3 3v4h-7z"/><circle cx="7" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></svg></span>Envíos a domicilio</span>
       </div></div>
@@ -225,7 +230,7 @@
       grid.innerHTML = visibleGroups.length ? visibleGroups.map(productGroupCard).join("") : `<div class="empty-state"><h3>No encontramos coincidencias</h3><p class="muted">Probá con otro nombre, artículo o categoría.</p></div>`;
       status.textContent = groups.length ? `${groups.length} ${groups.length === 1 ? "producto" : "productos"} · ${variantCount} presentaciones · página ${page} de ${totalPages}` : "0 productos";
       pagination.innerHTML = groups.length > pageSize ? `<button class="button ghost small" type="button" data-catalog-page="${page - 1}" ${page === 1 ? "disabled" : ""}>‹ Anterior</button><span>Página <strong>${page}</strong> de ${totalPages}</span><button class="button ghost small" type="button" data-catalog-page="${page + 1}" ${page === totalPages ? "disabled" : ""}>Siguiente ›</button>` : "";
-      chips.innerHTML = ["Todos", ...window.KAIZEN_CATEGORIES.map((item) => item.name)].map((name) => `<button class="chip ${name === category ? "active" : ""}" data-category="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join("");
+      chips.innerHTML = ["Todos", ...window.KAIZEN_CATEGORIES.map((item) => item.name)].map((name) => `<button class="chip ${name === category ? "active" : ""}" data-category="${escapeHtml(name)}"><span>${escapeHtml(categoryDisplayName(name))}</span></button>`).join("");
     }
     search.addEventListener("input", () => { page = 1; render(); });
     sort.addEventListener("change", () => { page = 1; render(); });
