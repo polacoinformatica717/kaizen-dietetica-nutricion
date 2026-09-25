@@ -45,10 +45,10 @@
     const active = (name) => page === name ? "active" : "";
     return `
       <div class="announcement"><div class="announcement-inner">
-        <span class="announcement-item"><span class="announcement-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9h12l1 11H5L6 9Z"/><path d="M9 9V7a3 3 0 0 1 6 0v2"/></svg></span><strong>Compra online</strong></span>
+        <span class="announcement-item"><span class="announcement-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1 12H6L5 8Zm4 0V6a3 3 0 0 1 6 0v2h-2V6a1 1 0 0 0-2 0v2H9Z"/></svg></span><strong>Compra online</strong></span>
         <a class="announcement-item announcement-whatsapp" href="${whatsappUrl("Hola Kaizen, quisiera hacer una consulta.")}" target="_blank" rel="noopener noreferrer"><span class="announcement-icon"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93a7.898 7.898 0 0 0-2.327-5.607zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.63-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.231.148-.429.05-.197-.1-.836-.308-1.592-.984-.59-.525-.986-1.175-1.1-1.372-.116-.198-.013-.306.085-.404.087-.087.198-.231.297-.346.1-.116.133-.198.198-.33.065-.134.034-.25-.016-.35-.05-.099-.445-1.074-.61-1.47-.16-.388-.323-.334-.445-.34-.114-.006-.247-.007-.378-.007a.729.729 0 0 0-.528.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.132 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.151.906.129 1.247.078.38-.057 1.17-.48 1.336-.943.164-.462.164-.858.114-.943-.049-.084-.182-.132-.38-.23z"/></svg></span><span>WhatsApp <strong>${CONTACT.phoneDisplay}</strong></span></a>
-        <span class="announcement-item"><span class="announcement-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h16v11H4z"/><path d="M8 8V5h8v3M4 12h16"/></svg></span>Retiro en el local</span>
-        <span class="announcement-item"><span class="announcement-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h11v11H3zM14 10h4l3 3v4h-7z"/><circle cx="7" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></svg></span>Envíos a domicilio</span>
+        <span class="announcement-item"><span class="announcement-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h16v12H4V8Zm3-4h10v4H7V4Zm4 7v6h2v-6h-2Z"/></svg></span>Retiro en el local</span>
+        <span class="announcement-item"><span class="announcement-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h11v11H3V5Zm12 5h4l3 4v2h-7v-6ZM7 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm11 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/></svg></span>Envíos a domicilio</span>
       </div></div>
       <header class="site-header">
         <div class="header-inner">
@@ -60,7 +60,7 @@
             <a class="${active("account")}" href="cuenta.html">${isAdmin ? "Administración" : "Mi cuenta"}</a>
           </nav>
           <div class="header-actions">
-            <a class="button ghost small" href="${session ? "cuenta.html" : "acceso.html"}"><span class="account-label">${session ? escapeHtml(session.name.split(" ")[0]) : "Ingresar"}</span><span aria-hidden="true">◎</span></a>
+            <a class="button ghost small" href="${session ? "cuenta.html" : "acceso.html"}"><span class="account-label">${session ? escapeHtml(session.name.split(" ")[0]) : "Ingresar"}</span><span class="account-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4Zm0 2c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5Z"/></svg></span></a>
             ${isAdmin ? "" : `<a class="button small cart-button ${active("cart")}" href="carrito.html">Carrito <span class="cart-count" data-cart-count>0</span></a>`}
           </div>
         </div>
